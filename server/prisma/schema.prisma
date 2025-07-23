@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String
+  age         Int?
+  weight      Float?
+  height      Float?
+  gender      Gender?
+  nationality String?
+  goal        Goal?
+  activityLevel ActivityLevel?
+  preferences String[] // Dietary preferences, allergies, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  dietPlans   DietPlan[]
+  
+  @@map("users")
+}
+
+model DietPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  weekStart   DateTime
+  weekEnd     DateTime
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals       Meal[]
+  
+  @@map("diet_plans")
+}
+
+model Meal {
+  id          String   @id @default(cuid())
+  dietPlanId  String
+  day         DayOfWeek
+  mealType    MealType
+  name        String
+  description String?
+  calories    Int?
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  fiber       Float?
+  ingredients String[]
+  instructions String?
+  prepTime    Int? // in minutes
+  cookTime    Int? // in minutes
+  servings    Int?
+  
+  dietPlan    DietPlan @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  
+  @@map("meals")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Goal {
+  WEIGHT_LOSS
+  WEIGHT_GAIN
+  MUSCLE_GAIN
+  MAINTENANCE
+  ATHLETIC_PERFORMANCE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}

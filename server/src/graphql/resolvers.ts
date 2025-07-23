@@ -1,0 +1,502 @@
+import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-express';
+import { OpenAIService } from '../services/openai.service';
+import { PDFService } from '../services/pdf.service';
+
+const prisma = new PrismaClient();
+const openAIService = new OpenAIService();
+const pdfService = new PDFService();
+
+interface Context {
+  user?: {
+    id: string;
+    email: string;
+  };
+}
+
+const generateToken = (userId: string, email: string): string => {
+  return jwt.sign(
+    { userId, email },
+    process.env.JWT_SECRET!,
+    { expiresIn: '7d' }
+  );
+};
+
+// Fallback diet plan when OpenAI fails
+const createFallbackDietPlan = (user: any, input: any) => {
+  const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+  
+  const fallbackMeals = {
+    BREAKFAST: [
+      { name: 'Oatmeal with Berries', calories: 350, protein: 12, carbs: 55, fat: 8, fiber: 8 },
+      { name: 'Greek Yogurt Parfait', calories: 300, protein: 20, carbs: 35, fat: 8, fiber: 5 },
+      { name: 'Whole Grain Toast with Avocado', calories: 320, protein: 10, carbs: 40, fat: 15, fiber: 10 }
+    ],
+    LUNCH: [
+      { name: 'Grilled Chicken Salad', calories: 450, protein: 35, carbs: 15, fat: 25, fiber: 6 },
+      { name: 'Quinoa Bowl with Vegetables', calories: 400, protein: 15, carbs: 60, fat: 12, fiber: 8 },
+      { name: 'Turkey and Hummus Wrap', calories: 380, protein: 25, carbs: 45, fat: 12, fiber: 6 }
+    ],
+    DINNER: [
+      { name: 'Baked Salmon with Sweet Potato', calories: 500, protein: 35, carbs: 40, fat: 20, fiber: 6 },
+      { name: 'Lean Beef Stir-fry', calories: 480, protein: 30, carbs: 35, fat: 22, fiber: 5 },
+      { name: 'Grilled Chicken with Brown Rice', calories: 450, protein: 40, carbs: 45, fat: 12, fiber: 4 }
+    ],
+    SNACK: [
+      { name: 'Apple with Almond Butter', calories: 200, protein: 6, carbs: 25, fat: 12, fiber: 5 },
+      { name: 'Greek Yogurt with Nuts', calories: 180, protein: 15, carbs: 12, fat: 8, fiber: 2 },
+      { name: 'Hummus with Vegetables', calories: 150, protein: 6, carbs: 18, fat: 8, fiber: 4 }
+    ]
+  };
+
+  const meals: any[] = [];
+  days.forEach((day, dayIndex) => {
+    mealTypes.forEach((mealType, mealIndex) => {
+      const fallbackOptions = fallbackMeals[mealType as keyof typeof fallbackMeals];
+      const selectedMeal = fallbackOptions[dayIndex % fallbackOptions.length];
+      
+      meals.push({
+        day,
+        mealType,
+        name: selectedMeal.name,
+        description: `Healthy ${mealType.toLowerCase()} option`,
+        calories: selectedMeal.calories,
+        protein: selectedMeal.protein,
+        carbs: selectedMeal.carbs,
+        fat: selectedMeal.fat,
+        fiber: selectedMeal.fiber,
+        ingredients: ['Main ingredient', 'Supporting ingredients'],
+        instructions: 'Prepare according to standard cooking methods',
+        prepTime: 10,
+        cookTime: 15,
+        servings: 1
+      });
+    });
+  });
+
+  return {
+    description: 'Balanced diet plan with healthy meal options',
+    meals
+  };
+};
+
+export const resolvers = {
+  Query: {
+    me: async (_: any, __: any, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      return await prisma.user.findUnique({
+        where: { id: context.user.id },
+        include: {
+          dietPlans: {
+            include: {
+              meals: true
+            }
+          }
+        }
+      });
+    },
+
+    getDietPlan: async (_: any, { id }: { id: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id },
+        include: {
+          user: true,
+          meals: true
+        }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      return dietPlan;
+    },
+
+    getActiveDietPlan: async (_: any, __: any, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      return await prisma.dietPlan.findFirst({
+        where: {
+          userId: context.user.id,
+          isActive: true
+        },
+        include: {
+          user: true,
+          meals: {
+            orderBy: [
+              { day: 'asc' },
+              { mealType: 'asc' }
+            ]
+          }
+        }
+      });
+    },
+
+    getAllDietPlans: async (_: any, __: any, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      return await prisma.dietPlan.findMany({
+        where: { userId: context.user.id },
+        include: {
+          user: true,
+          meals: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    },
+
+    getMealsByDay: async (_: any, { dietPlanId, day }: { dietPlanId: string; day: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id: dietPlanId }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      return await prisma.meal.findMany({
+        where: {
+          dietPlanId,
+          day: day as any
+        },
+        include: {
+          dietPlan: true
+        },
+        orderBy: { mealType: 'asc' }
+      });
+    }
+  },
+
+  Mutation: {
+    register: async (_: any, { input }: { input: any }) => {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: input.email }
+      });
+
+      if (existingUser) {
+        throw new UserInputError('User with this email already exists');
+      }
+
+      const hashedPassword = await bcrypt.hash(input.password, 10);
+
+      const user = await prisma.user.create({
+        data: {
+          ...input,
+          password: hashedPassword,
+          preferences: input.preferences || []
+        }
+      });
+
+      const token = generateToken(user.id, user.email);
+
+      return {
+        token,
+        user
+      };
+    },
+
+    login: async (_: any, { email, password }: { email: string; password: string }) => {
+      const user = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      if (!user) {
+        throw new AuthenticationError('Invalid email or password');
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+
+      if (!isValidPassword) {
+        throw new AuthenticationError('Invalid email or password');
+      }
+
+      const token = generateToken(user.id, user.email);
+
+      return {
+        token,
+        user
+      };
+    },
+
+    updateProfile: async (_: any, { input }: { input: any }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      return await prisma.user.update({
+        where: { id: context.user.id },
+        data: {
+          ...input,
+          preferences: input.preferences || []
+        }
+      });
+    },
+
+    generateDietPlan: async (_: any, { input }: { input: any }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: context.user.id }
+        });
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        // Deactivate existing active diet plans
+        await prisma.dietPlan.updateMany({
+          where: {
+            userId: context.user.id,
+            isActive: true
+          },
+          data: { isActive: false }
+        });
+
+        let generatedPlan;
+        try {
+          // Generate diet plan using OpenAI
+          generatedPlan = await openAIService.generateDietPlan(user, input);
+        } catch (aiError) {
+          console.error('OpenAI service failed, using fallback:', aiError);
+          // Fallback to a basic diet plan structure
+          generatedPlan = createFallbackDietPlan(user, input);
+        }
+
+        // Calculate week end date
+        const weekStart = new Date(input.weekStart);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Create diet plan in database
+        const dietPlan = await prisma.dietPlan.create({
+          data: {
+            userId: context.user.id,
+            name: input.name,
+            description: input.description || generatedPlan.description,
+            weekStart,
+            weekEnd,
+            isActive: true,
+            meals: {
+              create: generatedPlan.meals
+            }
+          },
+          include: {
+            user: true,
+            meals: true
+          }
+        });
+
+        return {
+          success: true,
+          dietPlan,
+          error: null
+        };
+      } catch (error) {
+        console.error('Error generating diet plan:', error);
+        return {
+          success: false,
+          dietPlan: null,
+          error: 'Failed to generate diet plan. Please try again.'
+        };
+      }
+    },
+
+    updateDietPlan: async (_: any, { id, input }: { id: string; input: any }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      const weekEnd = new Date(input.weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      return await prisma.dietPlan.update({
+        where: { id },
+        data: {
+          name: input.name,
+          description: input.description,
+          weekStart: input.weekStart,
+          weekEnd
+        },
+        include: {
+          user: true,
+          meals: true
+        }
+      });
+    },
+
+    deleteDietPlan: async (_: any, { id }: { id: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      await prisma.dietPlan.delete({
+        where: { id }
+      });
+
+      return true;
+    },
+
+    setActiveDietPlan: async (_: any, { id }: { id: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      // Deactivate all existing plans
+      await prisma.dietPlan.updateMany({
+        where: {
+          userId: context.user.id,
+          isActive: true
+        },
+        data: { isActive: false }
+      });
+
+      // Activate the selected plan
+      return await prisma.dietPlan.update({
+        where: { id },
+        data: { isActive: true },
+        include: {
+          user: true,
+          meals: true
+        }
+      });
+    },
+
+    updateMeal: async (_: any, { input }: { input: any }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const meal = await prisma.meal.findUnique({
+        where: { id: input.id },
+        include: { dietPlan: true }
+      });
+
+      if (!meal || meal.dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Meal not found or access denied');
+      }
+
+      return await prisma.meal.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          description: input.description,
+          calories: input.calories,
+          protein: input.protein,
+          carbs: input.carbs,
+          fat: input.fat,
+          fiber: input.fiber,
+          ingredients: input.ingredients || [],
+          instructions: input.instructions,
+          prepTime: input.prepTime,
+          cookTime: input.cookTime,
+          servings: input.servings
+        },
+        include: {
+          dietPlan: true
+        }
+      });
+    },
+
+    regenerateMeal: async (_: any, { mealId, customRequirements }: { mealId: string; customRequirements?: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const meal = await prisma.meal.findUnique({
+        where: { id: mealId },
+        include: { dietPlan: { include: { user: true } } }
+      });
+
+      if (!meal || meal.dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Meal not found or access denied');
+      }
+
+      try {
+        const regeneratedMeal = await openAIService.regenerateMeal(
+          meal.dietPlan.user,
+          meal,
+          customRequirements
+        );
+
+        return await prisma.meal.update({
+          where: { id: mealId },
+          data: regeneratedMeal,
+          include: {
+            dietPlan: true
+          }
+        });
+      } catch (error) {
+        console.error('Error regenerating meal:', error);
+        throw new Error('Failed to regenerate meal. Please try again.');
+      }
+    },
+
+    generatePDF: async (_: any, { dietPlanId }: { dietPlanId: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id: dietPlanId },
+        include: {
+          user: true,
+          meals: {
+            orderBy: [
+              { day: 'asc' },
+              { mealType: 'asc' }
+            ]
+          }
+        }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      try {
+        const pdfBuffer = await pdfService.generateDietPlanPDF(dietPlan);
+        return pdfBuffer.toString('base64');
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        throw new Error('Failed to generate PDF. Please try again.');
+      }
+    }
+  }
+};
