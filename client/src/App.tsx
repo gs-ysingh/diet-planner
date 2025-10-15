@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
@@ -11,55 +11,10 @@ import Profile from './pages/Profile';
 import DietPlans from './pages/DietPlans';
 import CreatePlan from './pages/CreatePlan';
 import Landing from './pages/Landing';
+import { dietPlannerTheme } from './theme/dietPlannerTheme';
 import './App.css';
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#2e7d32',
-      light: '#4caf50',
-      dark: '#1b5e20',
-    },
-    secondary: {
-      main: '#ff6f00',
-      light: '#ffa726',
-      dark: '#e65100',
-    },
-    background: {
-      default: '#f8f9fa',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontWeight: 600,
-    },
-    h2: {
-      fontWeight: 600,
-    },
-    h3: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: 8,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        },
-      },
-    },
-  },
-});
+
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -150,7 +105,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={dietPlannerTheme}>
       <CssBaseline />
       <AuthProvider>
         <Router>
