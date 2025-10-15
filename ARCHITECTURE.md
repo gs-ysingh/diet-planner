@@ -166,15 +166,13 @@ diet-planner/
 │   │   ├── 📁 pages/                   # Route components
 │   │   │   ├── Landing.tsx
 │   │   │   ├── Dashboard.tsx
-│   │   │   ├── CreatePlan.tsx          # Original
-│   │   │   ├── CreatePlanModern.tsx    # Modernized
+│   │   │   ├── CreatePlan.tsx
 │   │   │   ├── DietPlans.tsx
 │   │   │   └── Profile.tsx
 │   │   ├── 📁 contexts/                # React contexts
 │   │   │   └── AuthContext.tsx
 │   │   ├── 📁 services/                # API services
-│   │   │   ├── api.ts                  # Original
-│   │   │   └── api-modern.ts           # TanStack Query
+│   │   │   └── api.ts                  # Main API service
 │   │   ├── 📁 providers/               # Context providers
 │   │   │   └── QueryProvider.tsx
 │   │   ├── 📁 types/                   # TypeScript types
