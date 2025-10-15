@@ -139,3 +139,8 @@ export interface MealUpdateInput {
   cookTime?: number;
   servings?: number;
 }
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}

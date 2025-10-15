@@ -1,15 +1,23 @@
-# Diet Planner Application
+# 🍽️ Diet Planner - Modern AI-Powered Meal Planning
 
-A comprehensive AI-powered diet planning application built with React, TypeScript, Relay GraphQL, and Node.js.
+> A comprehensive, modern full-stack web application that generates personalized weekly meal plans using AI technology. Built with the latest 2024-2025 tech stack for optimal performance and developer experience.
 
-## Features
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.2+-61dafb?logo=react)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue?logo=postgresql)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.7+-2d3748?logo=prisma)](https://www.prisma.io/)
 
-- 🍽️ AI-powered weekly diet plan generation
-- 👤 User profile management
-- 📱 Responsive and accessible design
-- 📄 PDF export functionality
-- 🔄 Plan customization and updates
-- 🌍 Multi-cultural cuisine support
+## ✨ Features
+
+- 🤖 **AI-Powered Generation**: Create personalized meal plans using OpenAI GPT-4
+- 📱 **Modern UI/UX**: Beautiful, responsive interface with Material-UI
+- 🎯 **Personalization**: Dietary preferences, restrictions, and health goals
+- 📊 **Nutrition Tracking**: Detailed nutritional information for each meal
+- 📄 **PDF Export**: Download meal plans as formatted PDFs
+- 🔐 **Secure Authentication**: JWT-based user authentication
+- � **Real-time Updates**: Live form validation and instant feedback
+- � **Smooth Animations**: Elegant transitions with Framer Motion
 
 ## Tech Stack
 

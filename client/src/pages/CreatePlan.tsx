@@ -18,16 +18,22 @@ import {
   Step,
   StepLabel,
 } from '@mui/material';
-import { useFormik } from 'formik';
-import * as yup from 'yup';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { DietPlanInput } from '../types';
 
-const validationSchema = yup.object({
-  name: yup.string().required('Plan name is required'),
-  weekStart: yup.string().required('Start date is required'),
+// Modern Zod validation schema
+const dietPlanSchema = z.object({
+  name: z.string().min(1, 'Plan name is required').max(100, 'Name too long'),
+  description: z.string().optional(),
+  weekStart: z.string().min(1, 'Start date is required'),
+  customRequirements: z.string().optional(),
 });
+
+type DietPlanFormData = z.infer<typeof dietPlanSchema>;
 
 const dietaryOptions = [
   'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo',
@@ -45,7 +51,7 @@ const mealComplexityOptions = [
 const CreatePlan: React.FC = () => {
   const navigate = useNavigate();
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [activeStep, setActiveStep] = useState(0);
@@ -53,45 +59,53 @@ const CreatePlan: React.FC = () => {
 
   const steps = ['Plan Details', 'Preferences', 'Generate Plan'];
 
-  const formik = useFormik({
-    initialValues: {
+  // Modern React Hook Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting, isValid },
+    trigger,
+  } = useForm<DietPlanFormData>({
+    resolver: zodResolver(dietPlanSchema),
+    defaultValues: {
       name: '',
       description: '',
-      weekStart: new Date().toISOString().split('T')[0], // Format: YYYY-MM-DD
+      weekStart: new Date().toISOString().split('T')[0],
       customRequirements: '',
     },
-    validationSchema: validationSchema,
-    onSubmit: async (values) => {
-      setLoading(true);
-      setError('');
-      setSuccess('');
-
-      try {
-        const planInput: DietPlanInput = {
-          name: values.name,
-          description: values.description,
-          weekStart: new Date(values.weekStart).toISOString(),
-          preferences: [...selectedPreferences, complexity].filter(Boolean),
-          customRequirements: values.customRequirements,
-        };
-
-        const result = await apiService.generateDietPlan(planInput);
-        
-        if (result.success) {
-          setSuccess('Diet plan generated successfully!');
-          setTimeout(() => {
-            navigate('/diet-plans');
-          }, 2000);
-        } else {
-          setError(result.error || 'Failed to generate diet plan');
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to generate diet plan');
-      } finally {
-        setLoading(false);
-      }
-    },
+    mode: 'onChange', // Real-time validation
   });
+
+  const watchedValues = watch();
+
+  const onSubmit = async (data: DietPlanFormData) => {
+    setError('');
+    setSuccess('');
+
+    try {
+      const planInput: DietPlanInput = {
+        name: data.name,
+        description: data.description || '',
+        weekStart: new Date(data.weekStart).toISOString(),
+        preferences: [...selectedPreferences, complexity].filter(Boolean),
+        customRequirements: data.customRequirements || '',
+      };
+
+      const result = await apiService.generateDietPlan(planInput);
+      
+      if (result.success) {
+        setSuccess('Diet plan generated successfully!');
+        setTimeout(() => {
+          navigate('/diet-plans');
+        }, 2000);
+      } else {
+        setError(result.error || 'Failed to generate diet plan');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate diet plan');
+    }
+  };
 
   const handlePreferenceToggle = (preference: string) => {
     setSelectedPreferences(prev =>
@@ -101,11 +115,11 @@ const CreatePlan: React.FC = () => {
     );
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (activeStep === 0) {
-      // Validate step 1
-      if (!formik.values.name || !formik.values.weekStart) {
-        formik.setTouched({ name: true, weekStart: true });
+      // Validate step 1 with React Hook Form
+      const isStepValid = await trigger(['name', 'weekStart']);
+      if (!isStepValid) {
         return;
       }
     }
@@ -122,48 +136,54 @@ const CreatePlan: React.FC = () => {
         return (
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                id="name"
-                label="Plan Name"
+              <Controller
                 name="name"
-                placeholder="My Healthy Week, Summer Cut Plan, etc."
-                value={formik.values.name}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.name && Boolean(formik.errors.name)}
-                helperText={formik.touched.name && formik.errors.name}
+                control={control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Plan Name"
+                    placeholder="My Healthy Week, Summer Cut Plan, etc."
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
+                  />
+                )}
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                id="description"
-                label="Description (Optional)"
+              <Controller
                 name="description"
-                multiline
-                rows={3}
-                placeholder="Describe your goals or any specific requirements..."
-                value={formik.values.description}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Description (Optional)"
+                    multiline
+                    rows={3}
+                    placeholder="Describe your goals or any specific requirements..."
+                  />
+                )}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                id="weekStart"
-                label="Week Start Date"
+              <Controller
                 name="weekStart"
-                type="date"
-                value={formik.values.weekStart}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.weekStart && Boolean(formik.errors.weekStart)}
-                helperText={formik.touched.weekStart && formik.errors.weekStart}
-                InputLabelProps={{
-                  shrink: true,
-                }}
+                control={control}
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Week Start Date"
+                    type="date"
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
+                )}
               />
             </Grid>
           </Grid>
@@ -209,17 +229,19 @@ const CreatePlan: React.FC = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                id="customRequirements"
-                label="Custom Requirements (Optional)"
+              <Controller
                 name="customRequirements"
-                multiline
-                rows={4}
-                placeholder="Any specific foods you want included/excluded, cooking methods, cultural preferences, etc."
-                value={formik.values.customRequirements}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Custom Requirements (Optional)"
+                    multiline
+                    rows={4}
+                    placeholder="Any specific foods you want included/excluded, cooking methods, cultural preferences, etc."
+                  />
+                )}
               />
             </Grid>
           </Grid>
@@ -241,10 +263,10 @@ const CreatePlan: React.FC = () => {
                 Plan Summary:
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Name:</strong> {formik.values.name}
+                <strong>Name:</strong> {watchedValues.name}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Start Date:</strong> {new Date(formik.values.weekStart).toDateString()}
+                <strong>Start Date:</strong> {new Date(watchedValues.weekStart).toDateString()}
               </Typography>
               {selectedPreferences.length > 0 && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
@@ -256,9 +278,9 @@ const CreatePlan: React.FC = () => {
                   <strong>Complexity:</strong> {complexity}
                 </Typography>
               )}
-              {formik.values.description && (
+              {watchedValues.description && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Description:</strong> {formik.values.description}
+                  <strong>Description:</strong> {watchedValues.description}
                 </Typography>
               )}
             </Paper>
@@ -300,7 +322,7 @@ const CreatePlan: React.FC = () => {
           ))}
         </Stepper>
 
-        <Box component="form" onSubmit={formik.handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
           {renderStepContent(activeStep)}
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
@@ -318,14 +340,14 @@ const CreatePlan: React.FC = () => {
               <Button
                 type="submit"
                 variant="contained"
-                disabled={loading}
+                disabled={isSubmitting || !isValid}
                 sx={{
                   bgcolor: '#2e7d32',
                   '&:hover': { bgcolor: '#1b5e20' },
                   minWidth: 120,
                 }}
               >
-                {loading ? (
+                {isSubmitting ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
                   'Generate Plan'
