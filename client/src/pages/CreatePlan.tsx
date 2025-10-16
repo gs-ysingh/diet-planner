@@ -29,7 +29,12 @@ import { DietPlanInput } from '../types';
 const dietPlanSchema = z.object({
   name: z.string().min(1, 'Plan name is required').max(100, 'Name too long'),
   description: z.string().optional(),
-  weekStart: z.string().min(1, 'Start date is required'),
+  weekStart: z.string()
+    .min(1, 'Start date is required')
+    .refine((date) => {
+      const parsedDate = new Date(date);
+      return !isNaN(parsedDate.getTime()) && parsedDate >= new Date(new Date().setHours(0, 0, 0, 0));
+    }, 'Please select a valid date that is today or in the future'),
   customRequirements: z.string().optional(),
 });
 
@@ -63,21 +68,45 @@ const CreatePlan: React.FC = () => {
   const {
     control,
     handleSubmit,
-    watch,
-    formState: { errors, isSubmitting, isValid },
+    getValues,
+    setValue,
+    formState: { isSubmitting },
     trigger,
   } = useForm<DietPlanFormData>({
     resolver: zodResolver(dietPlanSchema),
     defaultValues: {
       name: '',
       description: '',
-      weekStart: new Date().toISOString().split('T')[0],
+      weekStart: '',
       customRequirements: '',
     },
-    mode: 'onChange', // Real-time validation
+    mode: 'onChange',
   });
 
-  const watchedValues = watch();
+  // Set default date after form initialization
+  React.useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setValue('weekStart', today);
+  }, [setValue]);
+
+  // Ensure weekStart has a default value
+  React.useEffect(() => {
+    const currentWeekStart = getValues('weekStart');
+    if (!currentWeekStart) {
+      const today = new Date().toISOString().split('T')[0];
+      setValue('weekStart', today);
+    }
+  }, [setValue, getValues]);
+
+  // Simple validation check for required fields
+  const canSubmit = React.useMemo(() => {
+    const currentValues = getValues();
+    return Boolean(
+      currentValues.name?.trim() && 
+      currentValues.weekStart?.trim() && 
+      !isSubmitting
+    );
+  }, [getValues, isSubmitting]);
 
   const onSubmit = async (data: DietPlanFormData) => {
     setError('');
@@ -137,6 +166,7 @@ const CreatePlan: React.FC = () => {
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Controller
+                key="name-field"
                 name="name"
                 control={control}
                 render={({ field, fieldState }) => (
@@ -153,6 +183,7 @@ const CreatePlan: React.FC = () => {
             </Grid>
             <Grid item xs={12}>
               <Controller
+                key="description-field"
                 name="description"
                 control={control}
                 render={({ field }) => (
@@ -169,6 +200,7 @@ const CreatePlan: React.FC = () => {
             </Grid>
             <Grid item xs={12} sm={6}>
               <Controller
+                key="weekStart-field"
                 name="weekStart"
                 control={control}
                 render={({ field, fieldState }) => (
@@ -248,6 +280,7 @@ const CreatePlan: React.FC = () => {
         );
 
       case 2:
+        const formValues = getValues(); // Get current form values directly
         return (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="h5" gutterBottom>
@@ -263,10 +296,27 @@ const CreatePlan: React.FC = () => {
                 Plan Summary:
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Name:</strong> {watchedValues.name}
+                <strong>Name:</strong> {formValues.name}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Start Date:</strong> {new Date(watchedValues.weekStart).toDateString()}
+                <strong>Start Date:</strong> {
+                  (() => {
+                    const dateValue = formValues.weekStart;
+                    if (!dateValue) {
+                      return 'Not selected';
+                    }
+                    const date = new Date(dateValue);
+                    if (isNaN(date.getTime())) {
+                      return 'Invalid date';
+                    }
+                    return date.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    });
+                  })()
+                }
               </Typography>
               {selectedPreferences.length > 0 && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
@@ -278,9 +328,9 @@ const CreatePlan: React.FC = () => {
                   <strong>Complexity:</strong> {complexity}
                 </Typography>
               )}
-              {watchedValues.description && (
+              {formValues.description && (
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Description:</strong> {watchedValues.description}
+                  <strong>Description:</strong> {formValues.description}
                 </Typography>
               )}
             </Paper>
@@ -323,6 +373,21 @@ const CreatePlan: React.FC = () => {
         </Stepper>
 
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+          {/* Hidden Controllers to ensure all fields are registered */}
+          <Box sx={{ display: 'none' }}>
+            <Controller
+              name="weekStart"
+              control={control}
+              render={({ field }) => (
+                <input 
+                  {...field} 
+                  type="date"
+                  value={field.value || ''}
+                />
+              )}
+            />
+          </Box>
+
           {renderStepContent(activeStep)}
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
@@ -340,7 +405,7 @@ const CreatePlan: React.FC = () => {
               <Button
                 type="submit"
                 variant="contained"
-                disabled={isSubmitting || !isValid}
+                disabled={!canSubmit}
                 sx={{
                   bgcolor: '#2e7d32',
                   '&:hover': { bgcolor: '#1b5e20' },

@@ -2,11 +2,12 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-express';
-import { OpenAIService } from '../services/openai.service';
+import { ModernAIService } from '../services/ai.service';
 import { PDFService } from '../services/pdf.service';
+import { validatePasswordSecurity, sanitizeInput, validateEmail, checkLoginRateLimit } from '../middleware/security';
 
 const prisma = new PrismaClient();
-const openAIService = new OpenAIService();
+const aiService = new ModernAIService();
 const pdfService = new PDFService();
 
 interface Context {
@@ -187,19 +188,36 @@ export const resolvers = {
 
   Mutation: {
     register: async (_: any, { input }: { input: any }) => {
+      // Validate and sanitize inputs
+      const email = sanitizeInput(input.email).toLowerCase();
+      const name = sanitizeInput(input.name);
+      
+      // Validate email format
+      if (!validateEmail(email)) {
+        throw new UserInputError('Invalid email format');
+      }
+      
+      // Validate password security
+      const passwordValidation = validatePasswordSecurity(input.password);
+      if (!passwordValidation.isValid) {
+        throw new UserInputError(`Password requirements not met: ${passwordValidation.errors.join(', ')}`);
+      }
+      
       const existingUser = await prisma.user.findUnique({
-        where: { email: input.email }
+        where: { email }
       });
 
       if (existingUser) {
         throw new UserInputError('User with this email already exists');
       }
 
-      const hashedPassword = await bcrypt.hash(input.password, 10);
+      const hashedPassword = await bcrypt.hash(input.password, 12);
 
       const user = await prisma.user.create({
         data: {
           ...input,
+          email,
+          name,
           password: hashedPassword,
           preferences: input.preferences || []
         }
@@ -214,8 +232,18 @@ export const resolvers = {
     },
 
     login: async (_: any, { email, password }: { email: string; password: string }) => {
+      const sanitizedEmail = sanitizeInput(email).toLowerCase();
+      
+      // Check rate limiting for login attempts
+      checkLoginRateLimit(sanitizedEmail);
+      
+      // Validate email format
+      if (!validateEmail(sanitizedEmail)) {
+        throw new AuthenticationError('Invalid email or password');
+      }
+      
       const user = await prisma.user.findUnique({
-        where: { email }
+        where: { email: sanitizedEmail }
       });
 
       if (!user) {
@@ -275,10 +303,10 @@ export const resolvers = {
 
         let generatedPlan;
         try {
-          // Generate diet plan using OpenAI
-          generatedPlan = await openAIService.generateDietPlan(user, input);
+          // Generate diet plan using Modern AI Service with LangChain
+          generatedPlan = await aiService.generateDietPlan(user, input);
         } catch (aiError) {
-          console.error('OpenAI service failed, using fallback:', aiError);
+          console.error('AI service failed, using fallback:', aiError);
           // Fallback to a basic diet plan structure
           generatedPlan = createFallbackDietPlan(user, input);
         }
@@ -449,7 +477,7 @@ export const resolvers = {
       }
 
       try {
-        const regeneratedMeal = await openAIService.regenerateMeal(
+        const regeneratedMeal = await aiService.regenerateMeal(
           meal.dietPlan.user,
           meal,
           customRequirements
@@ -491,7 +519,33 @@ export const resolvers = {
       }
 
       try {
-        const pdfBuffer = await pdfService.generateDietPlanPDF(dietPlan);
+        // Convert null values to undefined for PDF service compatibility
+        const pdfCompatiblePlan = {
+          ...dietPlan,
+          description: dietPlan.description || undefined,
+          user: {
+            ...dietPlan.user,
+            age: dietPlan.user.age || undefined,
+            weight: dietPlan.user.weight || undefined,
+            height: dietPlan.user.height || undefined,
+            goal: dietPlan.user.goal || undefined,
+          },
+          meals: dietPlan.meals.map(meal => ({
+            ...meal,
+            description: meal.description || undefined,
+            calories: meal.calories || undefined,
+            protein: meal.protein || undefined,
+            carbs: meal.carbs || undefined,
+            fat: meal.fat || undefined,
+            fiber: meal.fiber || undefined,
+            instructions: meal.instructions || undefined,
+            prepTime: meal.prepTime || undefined,
+            cookTime: meal.cookTime || undefined,
+            servings: meal.servings || undefined,
+          }))
+        };
+        
+        const pdfBuffer = await pdfService.generateDietPlanPDF(pdfCompatiblePlan);
         return pdfBuffer.toString('base64');
       } catch (error) {
         console.error('Error generating PDF:', error);

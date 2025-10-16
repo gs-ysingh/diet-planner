@@ -162,7 +162,7 @@ class ErrorBoundary extends Component {
 export class DietPlanService {
   constructor(
     private db: PrismaClient,
-    private aiService: OpenAIService
+    private aiService: ModernAIService
   ) {}
   
   async generateDietPlan(input: DietPlanInput, userId: string): Promise<DietPlan> {

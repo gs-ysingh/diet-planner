@@ -7,7 +7,7 @@ export interface AuthContext {
   };
 }
 
-export const createContext = ({ req }: { req: any }): AuthContext => {
+export const createContext = async ({ req }: { req: any }): Promise<AuthContext> => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   
   if (!token) {

@@ -18,11 +18,20 @@ import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Gender, Goal, ActivityLevel } from '../types';
+import PasswordStrengthIndicator from './ui/PasswordStrengthIndicator';
+import { validatePasswordStrength } from '../utils/passwordSecurity';
 
 const validationSchema = yup.object({
   name: yup.string().required('Name is required'),
   email: yup.string().email('Enter a valid email').required('Email is required'),
-  password: yup.string().min(6, 'Password should be at least 6 characters').required('Password is required'),
+  password: yup.string()
+    .min(8, 'Password should be at least 8 characters')
+    .required('Password is required')
+    .test('password-strength', 'Password is too weak', function(value) {
+      if (!value) return false;
+      const strength = validatePasswordStrength(value);
+      return strength.isValid;
+    }),
   age: yup.number().positive('Age must be positive').integer('Age must be an integer'),
   weight: yup.number().positive('Weight must be positive'),
   height: yup.number().positive('Height must be positive'),
@@ -39,6 +48,7 @@ const Register: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+  const [passwordStrength, setPasswordStrength] = useState(validatePasswordStrength(''));
 
   const formik = useFormik({
     initialValues: {
@@ -120,7 +130,7 @@ const Register: React.FC = () => {
             </Alert>
           )}
 
-          <Box component="form" onSubmit={formik.handleSubmit} sx={{ width: '100%' }}>
+          <Box component="form" onSubmit={formik.handleSubmit} sx={{ width: '100%' }} noValidate>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -129,7 +139,8 @@ const Register: React.FC = () => {
                   id="name"
                   label="Full Name"
                   name="name"
-                  autoComplete="name"
+                  type="text"
+                  autoComplete="given-name family-name"
                   value={formik.values.name}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -144,7 +155,8 @@ const Register: React.FC = () => {
                   id="email"
                   label="Email Address"
                   name="email"
-                  autoComplete="email"
+                  type="email"
+                  autoComplete="username email"
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -162,10 +174,17 @@ const Register: React.FC = () => {
                   id="password"
                   autoComplete="new-password"
                   value={formik.values.password}
-                  onChange={formik.handleChange}
+                  onChange={(e) => {
+                    formik.handleChange(e);
+                    setPasswordStrength(validatePasswordStrength(e.target.value));
+                  }}
                   onBlur={formik.handleBlur}
                   error={formik.touched.password && Boolean(formik.errors.password)}
                   helperText={formik.touched.password && formik.errors.password}
+                />
+                <PasswordStrengthIndicator 
+                  strength={passwordStrength} 
+                  password={formik.values.password} 
                 />
               </Grid>
               <Grid item xs={12} sm={4}>

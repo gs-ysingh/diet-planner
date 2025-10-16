@@ -192,7 +192,7 @@ diet-planner/
 │   │   ├── 📁 middleware/              # Express middleware
 │   │   │   └── auth.ts
 │   │   ├── 📁 services/                # Business logic
-│   │   │   ├── openai.service.ts
+│   │   │   ├── ai.service.ts
 │   │   │   └── pdf.service.ts
 │   │   ├── 📁 data/                    # Seed data
 │   │   │   └── defaultDietPlan.ts
@@ -267,7 +267,7 @@ Express Application
 ├── Services
 │   ├── AuthService                   # User authentication
 │   ├── DietPlanService              # Plan generation
-│   ├── OpenAIService                # AI integration
+│   ├── ModernAIService              # LangChain AI integration
 │   └── PDFService                   # Document generation
 └── Data Layer
     ├── Prisma Client                # Database ORM

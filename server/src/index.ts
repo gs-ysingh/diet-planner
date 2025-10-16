@@ -4,6 +4,8 @@ import { expressMiddleware } from '@apollo/server/express4';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
 import http from 'http';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { typeDefs } from './graphql/schema';
 import { resolvers } from './graphql/resolvers';
@@ -16,6 +18,32 @@ const startServer = async () => {
   const app = express();
   const httpServer = http.createServer(app);
 
+  // Security middleware
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        scriptSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }));
+
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+
   // Create Apollo Server
   const server = new ApolloServer({
     typeDefs,
@@ -26,14 +54,16 @@ const startServer = async () => {
 
   await server.start();
 
-  // Middleware
+  // CORS and GraphQL middleware
   app.use(
     '/graphql',
     cors<cors.CorsRequest>({
       origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
       credentials: true,
+      methods: ['GET', 'POST'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     }),
-    express.json(),
+    express.json({ limit: '10mb' }),
     expressMiddleware(server, {
       context: createContext,
     })

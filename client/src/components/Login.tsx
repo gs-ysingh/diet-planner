@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 
 const validationSchema = yup.object({
   email: yup.string().email('Enter a valid email').required('Email is required'),
-  password: yup.string().min(6, 'Password should be at least 6 characters').required('Password is required'),
+  password: yup.string().min(8, 'Password should be at least 8 characters').required('Password is required'),
 });
 
 const Login: React.FC = () => {
@@ -79,7 +79,7 @@ const Login: React.FC = () => {
             </Alert>
           )}
 
-          <Box component="form" onSubmit={formik.handleSubmit} sx={{ width: '100%' }}>
+          <Box component="form" onSubmit={formik.handleSubmit} sx={{ width: '100%' }} noValidate>
             <TextField
               margin="normal"
               required
@@ -87,7 +87,8 @@ const Login: React.FC = () => {
               id="email"
               label="Email Address"
               name="email"
-              autoComplete="email"
+              type="email"
+              autoComplete="username email"
               autoFocus
               value={formik.values.email}
               onChange={formik.handleChange}
