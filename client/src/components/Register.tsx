@@ -88,13 +88,20 @@ const Register: React.FC = () => {
     },
   });
 
-  const handlePreferenceToggle = (preference: string) => {
-    setSelectedPreferences(prev =>
-      prev.includes(preference)
-        ? prev.filter(p => p !== preference)
-        : [...prev, preference]
-    );
-  };
+  const handlePreferenceToggle = React.useCallback((preference: string) => {
+    setSelectedPreferences(prev => {
+      const isSelected = prev.includes(preference);
+      let newPrefs;
+      
+      if (isSelected) {
+        newPrefs = prev.filter(p => p !== preference);
+      } else {
+        newPrefs = [...prev, preference];
+      }
+      
+      return newPrefs;
+    });
+  }, []);
 
   return (
     <Container component="main" maxWidth="md">
@@ -300,16 +307,36 @@ const Register: React.FC = () => {
                   Dietary Preferences (Optional)
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {dietaryOptions.map((option) => (
-                    <Chip
-                      key={option}
-                      label={option}
-                      clickable
-                      color={selectedPreferences.includes(option) ? 'primary' : 'default'}
-                      onClick={() => handlePreferenceToggle(option)}
-                      sx={{ mb: 1 }}
-                    />
-                  ))}
+                  {dietaryOptions.map((option) => {
+                    const isSelected = selectedPreferences.includes(option);
+                    return (
+                      <Chip
+                        key={option}
+                        label={option}
+                        clickable
+                        variant={isSelected ? 'filled' : 'outlined'}
+                        color={isSelected ? 'primary' : 'default'}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handlePreferenceToggle(option);
+                        }}
+                        sx={{ 
+                          mb: 1,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          '&:hover': {
+                            backgroundColor: isSelected 
+                              ? 'primary.dark' 
+                              : 'action.hover'
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)'
+                          }
+                        }}
+                      />
+                    );
+                  })}
                 </Box>
               </Grid>
             </Grid>
