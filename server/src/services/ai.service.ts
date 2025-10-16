@@ -74,7 +74,7 @@ export class ModernAIService {
       apiKey: process.env.OPENAI_API_KEY,
       model: 'gpt-4o-mini', // Latest cost-effective model
       temperature: 0.3,
-      maxTokens: 4000,
+      maxTokens: 8000, // Increased token limit for full meal plan
       streaming: false,
     });
 
@@ -90,46 +90,55 @@ export class ModernAIService {
       
       // Create structured prompt template
       const dietPlanPrompt = PromptTemplate.fromTemplate(`
-        You are an expert nutritionist and meal planner. Create a comprehensive 7-day diet plan with exactly 28 meals (4 meals per day for 7 days).
+        Create a 7-day diet plan with exactly 28 meals (4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK).
 
-        User Profile:
-        - Age: {age} years
-        - Weight: {weight} kg
-        - Height: {height} cm
-        - Gender: {gender}
-        - Nationality: {nationality}
-        - Goal: {goal}
-        - Activity Level: {activityLevel}
-        - Dietary Preferences: {userPreferences}
-        - Additional Preferences: {inputPreferences}
-        - Custom Requirements: {customRequirements}
+        User: Age {age}, Weight {weight}kg, Height {height}cm, Gender {gender}, Nationality {nationality}
+        Goal: {goal}, Activity: {activityLevel}
+        Preferences: {userPreferences}, {inputPreferences}
+        Requirements: {customRequirements}
 
         Requirements:
-        1. Create exactly 28 meals: 7 days × 4 meals (BREAKFAST, LUNCH, DINNER, SNACK)
-        2. Consider user's profile, goals, and all preferences
-        3. Ensure nutritional balance and appropriate calorie distribution
-        4. Include variety across the week while maintaining consistency with preferences
-        5. Provide realistic, culturally appropriate meals
-        6. Account for all dietary restrictions and preferences
-        7. Ensure each meal has proper nutritional values and detailed ingredients
-        8. Keep descriptions concise but informative
-        9. Provide clear, step-by-step cooking instructions
+        1. Exactly 28 meals: 7 days × 4 meals (BREAKFAST, LUNCH, DINNER, SNACK)
+        2. Consider user profile and preferences
+        3. Realistic, culturally appropriate meals
+        4. Proper nutritional values
 
-        Days must be: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
-        Meal types must be: BREAKFAST, LUNCH, DINNER, SNACK
+        Days: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+        Meal types: BREAKFAST, LUNCH, DINNER, SNACK
 
-        {formatInstructions}
+        CRITICAL: Respond with ONLY valid JSON. No markdown, no explanations.
+        
+        {{
+          "description": "Brief plan description (10-200 chars)",
+          "meals": [
+            {{
+              "day": "MONDAY",
+              "mealType": "BREAKFAST",
+              "name": "Meal name",
+              "description": "Brief description",
+              "calories": 400,
+              "protein": 25,
+              "carbs": 45,
+              "fat": 15,
+              "fiber": 8,
+              "ingredients": ["ingredient1", "ingredient2"],
+              "instructions": "Cooking steps",
+              "prepTime": 15,
+              "cookTime": 30,
+              "servings": 2
+            }}
+          ]
+        }}
       `);
 
-      // Create the processing chain
+      // Create the processing chain - but handle JSON parsing manually for better debugging
       const chain = RunnableSequence.from([
         dietPlanPrompt,
         this.chatModel,
-        this.jsonParser,
       ]);
 
       // Execute the chain with user data
-      const result = await chain.invoke({
+      const rawResponse = await chain.invoke({
         age: user.age || 'Not specified',
         weight: user.weight || 'Not specified',
         height: user.height || 'Not specified',
@@ -140,8 +149,60 @@ export class ModernAIService {
         userPreferences: user.preferences.join(', ') || 'None',
         inputPreferences: input.preferences.join(', ') || 'None',
         customRequirements: input.customRequirements || 'None',
-        formatInstructions: 'Respond with valid JSON only, no additional text or formatting.',
       });
+
+      console.log('🔍 Raw AI response type:', typeof rawResponse);
+      console.log('🔍 Raw AI response content:', rawResponse?.content || rawResponse);
+
+      // Parse JSON manually with better error handling
+      let result;
+      try {
+        const content = rawResponse?.content || rawResponse;
+        if (typeof content === 'string') {
+          // Try to extract JSON from markdown code blocks if present
+          const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+          let jsonString = jsonMatch ? jsonMatch[1] : content;
+          
+          // Handle truncated JSON by attempting to close it
+          if (!jsonString.trim().endsWith('}')) {
+            console.log('⚠️ Detected truncated JSON, attempting to fix...');
+            
+            // Count open and close braces
+            const openBraces = (jsonString.match(/\{/g) || []).length;
+            const closeBraces = (jsonString.match(/\}/g) || []).length;
+            const missingBraces = openBraces - closeBraces;
+            
+            // Add missing closing braces
+            if (missingBraces > 0) {
+              jsonString += ']' + '}'.repeat(missingBraces);
+              console.log(`🔧 Added ${missingBraces} closing braces and closed array`);
+            }
+          }
+          
+          result = JSON.parse(jsonString);
+        } else if (typeof content === 'object') {
+          result = content;
+        } else {
+          throw new Error('Unexpected response format');
+        }
+      } catch (parseError: any) {
+        console.error('❌ JSON parsing error:', parseError);
+        console.error('📝 Content that failed to parse (first 1000 chars):', 
+          String(rawResponse?.content || rawResponse).substring(0, 1000));
+        throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+      }
+
+      console.log('🔍 Parsed result structure:', {
+        description: result.description?.length,
+        mealsCount: result.meals?.length,
+        hasRequiredFields: !!(result.description && result.meals)
+      });
+
+      // Check if we have enough meals before validation
+      if (!result.meals || result.meals.length < 28) {
+        console.log(`⚠️ Incomplete meal plan: ${result.meals?.length || 0}/28 meals. Using fallback.`);
+        throw new Error(`Incomplete meal plan: only ${result.meals?.length || 0} out of 28 required meals`);
+      }
 
       // Validate the response with Zod schema
       const validatedResult = DietPlanSchema.parse(result);

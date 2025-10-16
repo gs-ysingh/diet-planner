@@ -70,6 +70,7 @@ const CreatePlan: React.FC = () => {
     handleSubmit,
     getValues,
     setValue,
+    watch,
     formState: { isSubmitting },
     trigger,
   } = useForm<DietPlanFormData>({
@@ -82,6 +83,9 @@ const CreatePlan: React.FC = () => {
     },
     mode: 'onChange',
   });
+
+  // Watch form fields to reactively update button state
+  const watchedFields = watch(['name', 'weekStart']);
 
   // Set default date after form initialization
   React.useEffect(() => {
@@ -98,15 +102,15 @@ const CreatePlan: React.FC = () => {
     }
   }, [setValue, getValues]);
 
-  // Simple validation check for required fields
+  // Simple validation check for required fields - now reactive to form changes
   const canSubmit = React.useMemo(() => {
-    const currentValues = getValues();
+    const [name, weekStart] = watchedFields;
     return Boolean(
-      currentValues.name?.trim() && 
-      currentValues.weekStart?.trim() && 
+      name?.trim() && 
+      weekStart?.trim() && 
       !isSubmitting
     );
-  }, [getValues, isSubmitting]);
+  }, [watchedFields, isSubmitting]);
 
   const onSubmit = async (data: DietPlanFormData) => {
     setError('');
@@ -440,7 +444,10 @@ const CreatePlan: React.FC = () => {
                 }}
               >
                 {isSubmitting ? (
-                  <CircularProgress size={24} color="inherit" />
+                  <>
+                    <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                    Generating...
+                  </>
                 ) : (
                   'Generate Plan'
                 )}
