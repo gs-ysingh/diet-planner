@@ -151,9 +151,6 @@ export class ModernAIService {
         customRequirements: input.customRequirements || 'None',
       });
 
-      console.log('🔍 Raw AI response type:', typeof rawResponse);
-      console.log('🔍 Raw AI response content:', rawResponse?.content || rawResponse);
-
       // Parse JSON manually with better error handling
       let result;
       try {
@@ -165,8 +162,6 @@ export class ModernAIService {
           
           // Handle truncated JSON by attempting to close it
           if (!jsonString.trim().endsWith('}')) {
-            console.log('⚠️ Detected truncated JSON, attempting to fix...');
-            
             // Count open and close braces
             const openBraces = (jsonString.match(/\{/g) || []).length;
             const closeBraces = (jsonString.match(/\}/g) || []).length;
@@ -175,7 +170,6 @@ export class ModernAIService {
             // Add missing closing braces
             if (missingBraces > 0) {
               jsonString += ']' + '}'.repeat(missingBraces);
-              console.log(`🔧 Added ${missingBraces} closing braces and closed array`);
             }
           }
           
@@ -187,29 +181,17 @@ export class ModernAIService {
         }
       } catch (parseError: any) {
         console.error('❌ JSON parsing error:', parseError);
-        console.error('📝 Content that failed to parse (first 1000 chars):', 
-          String(rawResponse?.content || rawResponse).substring(0, 1000));
         throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
       }
 
-      console.log('🔍 Parsed result structure:', {
-        description: result.description?.length,
-        mealsCount: result.meals?.length,
-        hasRequiredFields: !!(result.description && result.meals)
-      });
-
       // Check if we have enough meals before validation
       if (!result.meals || result.meals.length < 28) {
-        console.log(`⚠️ Incomplete meal plan: ${result.meals?.length || 0}/28 meals. Using fallback.`);
         throw new Error(`Incomplete meal plan: only ${result.meals?.length || 0} out of 28 required meals`);
       }
 
       // Validate the response with Zod schema
       const validatedResult = DietPlanSchema.parse(result);
 
-      console.log('✅ Successfully generated diet plan with LangChain');
-      console.log(`📊 Generated ${validatedResult.meals.length} meals`);
-      
       return this.formatDietPlanResponse(validatedResult);
 
     } catch (error) {
@@ -296,7 +278,6 @@ export class ModernAIService {
   }
 
   private getDefaultDietPlan() {
-    console.log('📋 Using default diet plan as fallback');
     return this.formatDietPlanResponse(defaultDietPlan);
   }
 
