@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.9.5",
-    "@langchain/core": "^0.3.78",
+    "@langchain/core": "^0.3.80",
     "@langchain/openai": "^0.6.16",
     "@prisma/client": "^5.7.1",
     "@types/helmet": "^4.0.0",
