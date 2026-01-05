@@ -44,47 +44,92 @@ const Header: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <AppBar position="sticky" sx={{ bgcolor: '#2e7d32' }}>
+    <AppBar 
+      position="sticky" 
+      elevation={0}
+      sx={{ 
+        bgcolor: 'white',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
       <Container maxWidth="lg">
-        <Toolbar>
-          <Restaurant sx={{ mr: 2 }} />
-          <Typography
-            variant="h6"
-            component="div"
-            sx={{ flexGrow: 1, cursor: 'pointer' }}
+        <Toolbar sx={{ py: 1 }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+              transition: 'opacity 0.2s',
+            }}
             onClick={() => navigate('/')}
           >
-            Diet Planner
-          </Typography>
+            <Restaurant sx={{ mr: 1.5, color: '#4ca6c9', fontSize: 28 }} />
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{ 
+                fontWeight: 700,
+                color: '#212121',
+                fontSize: '1.25rem',
+              }}
+            >
+              Diet Planner
+            </Typography>
+          </Box>
+
+          <Box sx={{ flexGrow: 1 }} />
 
           {user ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
-                color="inherit"
                 onClick={() => navigate('/dashboard')}
                 sx={{
-                  backgroundColor: isActive('/dashboard') ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+                  color: isActive('/dashboard') ? '#4ca6c9' : '#757575',
+                  fontWeight: isActive('/dashboard') ? 600 : 500,
+                  backgroundColor: isActive('/dashboard') ? 'rgba(76, 166, 201, 0.08)' : 'transparent',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  textTransform: 'none',
+                  px: 2,
+                  borderRadius: 2,
                 }}
               >
                 Dashboard
               </Button>
               <Button
-                color="inherit"
                 onClick={() => navigate('/diet-plans')}
                 sx={{
-                  backgroundColor: isActive('/diet-plans') ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+                  color: isActive('/diet-plans') ? '#4ca6c9' : '#757575',
+                  fontWeight: isActive('/diet-plans') ? 600 : 500,
+                  backgroundColor: isActive('/diet-plans') ? 'rgba(76, 166, 201, 0.08)' : 'transparent',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  textTransform: 'none',
+                  px: 2,
+                  borderRadius: 2,
                 }}
               >
                 My Plans
               </Button>
               <Button
-                color="inherit"
                 onClick={() => navigate('/create-plan')}
                 sx={{
-                  backgroundColor: isActive('/create-plan') ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+                  color: isActive('/create-plan') ? '#4ca6c9' : '#757575',
+                  fontWeight: isActive('/create-plan') ? 600 : 500,
+                  backgroundColor: isActive('/create-plan') ? 'rgba(76, 166, 201, 0.08)' : 'transparent',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  textTransform: 'none',
+                  px: 2,
+                  borderRadius: 2,
                 }}
               >
                 Create Plan
@@ -94,15 +139,15 @@ const Header: React.FC = () => {
                 <IconButton
                   size="large"
                   onClick={handleMenu}
-                  color="inherit"
-                  sx={{ ml: 2 }}
+                  sx={{ ml: 1 }}
                 >
                   <Avatar
                     sx={{
-                      width: 32,
-                      height: 32,
-                      bgcolor: 'rgba(255, 255, 255, 0.2)',
-                      fontSize: '1rem',
+                      width: 36,
+                      height: 36,
+                      bgcolor: '#4ca6c9',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
                     }}
                   >
                     {user.name.charAt(0).toUpperCase()}
@@ -123,32 +168,57 @@ const Header: React.FC = () => {
                 }}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
+                sx={{
+                  '& .MuiPaper-root': {
+                    mt: 1,
+                    minWidth: 180,
+                  },
+                }}
               >
                 <MenuItem onClick={handleProfile}>
-                  <AccountCircle sx={{ mr: 1 }} />
+                  <AccountCircle sx={{ mr: 1.5, color: '#757575' }} />
                   Profile
                 </MenuItem>
                 <MenuItem onClick={handleLogout}>
-                  <ExitToApp sx={{ mr: 1 }} />
+                  <ExitToApp sx={{ mr: 1.5, color: '#757575' }} />
                   Logout
                 </MenuItem>
               </Menu>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Button
-                color="inherit"
                 onClick={() => navigate('/login')}
-                sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' } }}
+                sx={{ 
+                  color: '#757575',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  px: 2.5,
+                  borderRadius: 2,
+                }}
               >
                 Login
               </Button>
               <Button
-                color="inherit"
+                variant="contained"
                 onClick={() => navigate('/register')}
-                sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' } }}
+                sx={{ 
+                  bgcolor: '#4ca6c9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': { 
+                    bgcolor: '#3c89af',
+                  },
+                  px: 2.5,
+                  borderRadius: 2,
+                  boxShadow: 'none',
+                }}
               >
-                Register
+                Sign Up
               </Button>
             </Box>
           )}

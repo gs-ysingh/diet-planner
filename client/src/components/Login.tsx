@@ -51,30 +51,51 @@ const Login: React.FC = () => {
       <Box
         sx={{
           marginTop: 8,
+          marginBottom: 8,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
         }}
       >
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
-            padding: 4,
+            padding: { xs: 3, sm: 5 },
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             width: '100%',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3,
           }}
         >
-          <Typography component="h1" variant="h4" sx={{ mb: 3, color: '#2e7d32' }}>
+          <Typography 
+            component="h1" 
+            variant="h3" 
+            sx={{ 
+              mb: 1, 
+              color: '#212121',
+              fontWeight: 700,
+              fontSize: { xs: '1.75rem', sm: '2.5rem' },
+            }}
+          >
             Welcome Back
           </Typography>
-          <Typography variant="body1" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              mb: 4, 
+              textAlign: 'center', 
+              color: '#757575',
+              fontSize: '1.05rem',
+            }}
+          >
             Sign in to access your personalized diet plans
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert severity="error" sx={{ width: '100%', mb: 3, borderRadius: 2 }}>
               {error}
             </Alert>
           )}
@@ -95,6 +116,7 @@ const Login: React.FC = () => {
               onBlur={formik.handleBlur}
               error={formik.touched.email && Boolean(formik.errors.email)}
               helperText={formik.touched.email && formik.errors.email}
+              sx={{ mb: 2 }}
             />
             <TextField
               margin="normal"
@@ -116,17 +138,22 @@ const Login: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{
-                mt: 3,
+                mt: 4,
                 mb: 2,
-                bgcolor: '#2e7d32',
-                '&:hover': { bgcolor: '#1b5e20' },
+                bgcolor: '#4ca6c9',
+                '&:hover': { bgcolor: '#3c89af' },
                 py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1.05rem',
+                fontWeight: 600,
+                boxShadow: 'none',
               }}
               disabled={loading}
             >
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
             </Button>
-            <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Link
                 component="button"
                 variant="body2"
@@ -134,7 +161,12 @@ const Login: React.FC = () => {
                   e.preventDefault();
                   navigate('/register');
                 }}
-                sx={{ color: '#2e7d32' }}
+                sx={{ 
+                  color: '#4ca6c9',
+                  textDecoration: 'none',
+                  fontWeight: 500,
+                  '&:hover': { textDecoration: 'underline' },
+                }}
               >
                 Don't have an account? Sign Up
               </Link>

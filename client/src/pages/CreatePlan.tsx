@@ -376,7 +376,7 @@ const CreatePlan: React.FC = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#2e7d32', fontWeight: 600 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#212121', fontWeight: 700 }}>
           Create New Diet Plan
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
@@ -438,9 +438,13 @@ const CreatePlan: React.FC = () => {
                 variant="contained"
                 disabled={!canSubmit}
                 sx={{
-                  bgcolor: '#2e7d32',
-                  '&:hover': { bgcolor: '#1b5e20' },
+                  bgcolor: '#4ca6c9',
+                  '&:hover': { bgcolor: '#3c89af' },
                   minWidth: 120,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: 'none',
                 }}
               >
                 {isSubmitting ? (
@@ -457,8 +461,12 @@ const CreatePlan: React.FC = () => {
                 variant="contained"
                 onClick={handleNext}
                 sx={{
-                  bgcolor: '#2e7d32',
-                  '&:hover': { bgcolor: '#1b5e20' },
+                  bgcolor: '#4ca6c9',
+                  '&:hover': { bgcolor: '#3c89af' },
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: 'none',
                 }}
               >
                 Next

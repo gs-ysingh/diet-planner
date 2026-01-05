@@ -78,23 +78,37 @@ const Dashboard: React.FC = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Welcome Section */}
       <Paper
+        elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #2e7d32 0%, #4caf50 100%)',
+          background: 'linear-gradient(135deg, #4ca6c9 0%, #3c89af 100%)',
           color: 'white',
-          p: 4,
+          p: { xs: 3, md: 5 },
           mb: 4,
-          borderRadius: 2,
+          borderRadius: 3,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            background: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+          },
         }}
       >
-        <Typography variant="h3" gutterBottom sx={{ fontWeight: 600 }}>
-          {getWelcomeMessage()}
-        </Typography>
-        <Typography variant="h6" sx={{ opacity: 0.9 }}>
-          {activePlan
-            ? `Your current plan: ${activePlan.name}`
-            : "Let's create your first personalized diet plan"
-          }
-        </Typography>
+        <Box sx={{ position: 'relative', zIndex: 1 }}>
+          <Typography variant="h3" gutterBottom sx={{ fontWeight: 700, fontSize: { xs: '1.75rem', md: '2.5rem' } }}>
+            {getWelcomeMessage()}
+          </Typography>
+          <Typography variant="h6" sx={{ opacity: 0.95, fontWeight: 400, fontSize: { xs: '1rem', md: '1.25rem' } }}>
+            {activePlan
+              ? `Your current plan: ${activePlan.name}`
+              : "Let's create your first personalized diet plan"
+            }
+          </Typography>
+        </Box>
       </Paper>
 
       {error && (
@@ -105,12 +119,21 @@ const Dashboard: React.FC = () => {
 
       {!activePlan ? (
         /* No Active Plan */
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Restaurant sx={{ fontSize: 80, color: '#ccc', mb: 2 }} />
-          <Typography variant="h5" gutterBottom>
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: { xs: 4, md: 6 }, 
+            textAlign: 'center',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 3,
+          }}
+        >
+          <Restaurant sx={{ fontSize: 80, color: '#e0e0e0', mb: 3 }} />
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#212121' }}>
             No Active Diet Plan
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 500, mx: 'auto', fontSize: '1.05rem' }}>
             Create your first AI-powered personalized diet plan to get started on your nutrition journey.
           </Typography>
           <Button
@@ -119,10 +142,15 @@ const Dashboard: React.FC = () => {
             startIcon={<Add />}
             onClick={() => navigate('/create-plan')}
             sx={{
-              bgcolor: '#2e7d32',
-              '&:hover': { bgcolor: '#1b5e20' },
+              bgcolor: '#4ca6c9',
+              '&:hover': { bgcolor: '#3c89af' },
               px: 4,
-              py: 1.5,
+              py: 1.75,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '1.05rem',
+              fontWeight: 600,
+              boxShadow: 'none',
             }}
           >
             Create Your First Plan
@@ -275,8 +303,12 @@ const Dashboard: React.FC = () => {
                   variant="contained"
                   onClick={() => navigate('/diet-plans')}
                   sx={{
-                    bgcolor: '#2e7d32',
-                    '&:hover': { bgcolor: '#1b5e20' },
+                    bgcolor: '#4ca6c9',
+                    '&:hover': { bgcolor: '#3c89af' },
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    boxShadow: 'none',
                   }}
                 >
                   View Full Plan

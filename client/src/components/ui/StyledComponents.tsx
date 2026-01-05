@@ -11,48 +11,52 @@ export const AnimatedBox = styled(motion.div)<BoxProps & MotionProps>`
 
 // Glass Morphism Container
 export const GlassContainer = styled(Box)(({ theme }) => ({
-  background: gradients.glass,
-  backdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255, 255, 255, 0.2)',
+  background: '#ffffff',
+  border: '1px solid rgba(0, 0, 0, 0.08)',
   borderRadius: theme.shape.borderRadius,
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
   padding: theme.spacing(3),
 }));
 
 // Enhanced Card with hover effects
 export const EnhancedCard = styled(Card)<CardProps>(({ theme }) => ({
-  borderRadius: 20,
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-  border: '1px solid rgba(255, 255, 255, 0.2)',
-  backdropFilter: 'blur(10px)',
-  background: gradients.glass,
-  transition: `all 0.3s ${animations.easeInOut}`,
+  borderRadius: 16,
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+  border: '1px solid rgba(0, 0, 0, 0.05)',
+  background: '#ffffff',
+  transition: 'all 0.3s ease-in-out',
   cursor: 'pointer',
   '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
   },
 }));
 
 // Gradient Button
 export const GradientButton = styled(Button)<ButtonProps>(({ theme, variant, color }) => {
-  const getGradient = () => {
-    if (color === 'secondary') return gradients.secondary;
-    return gradients.primary;
+  const getPrimaryColor = () => {
+    if (color === 'secondary') return colors.secondary[500];
+    return colors.primary[500];
+  };
+
+  const getHoverColor = () => {
+    if (color === 'secondary') return colors.secondary[600];
+    return colors.primary[600];
   };
 
   return {
-    borderRadius: 12,
+    borderRadius: 10,
     fontWeight: 600,
-    fontSize: '0.875rem',
-    padding: '12px 24px',
+    fontSize: '0.9375rem',
+    padding: '10px 24px',
     boxShadow: 'none',
-    transition: `all 0.3s ${animations.easeInOut}`,
+    transition: 'all 0.2s ease-in-out',
     textTransform: 'none',
-    background: variant === 'contained' ? getGradient() : 'transparent',
+    background: variant === 'contained' ? getPrimaryColor() : 'transparent',
     '&:hover': {
-      boxShadow: `0 8px 25px ${color === 'secondary' ? colors.secondary[500] : colors.primary[500]}30`,
-      transform: 'translateY(-2px)',
+      background: variant === 'contained' ? getHoverColor() : 'transparent',
+      boxShadow: `0 4px 12px ${getPrimaryColor()}40`,
+      transform: 'translateY(-1px)',
     },
     '&:active': {
       transform: 'translateY(0)',
@@ -65,16 +69,17 @@ export const FeatureIcon = styled(Box)(({ theme }) => ({
   width: 64,
   height: 64,
   margin: '0 auto 20px',
-  background: gradients.primary,
-  borderRadius: 16,
+  background: colors.primary[500],
+  borderRadius: 12,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   fontSize: 28,
   color: 'white',
-  transition: `all 0.3s ${animations.easeInOut}`,
+  transition: 'all 0.3s ease-in-out',
   '&:hover': {
-    transform: 'scale(1.05) rotate(5deg)',
+    transform: 'scale(1.05)',
+    background: colors.primary[600],
   },
 }));
 
