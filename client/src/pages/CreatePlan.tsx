@@ -61,6 +61,17 @@ const CreatePlan: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [activeStep, setActiveStep] = useState(0);
   const [complexity, setComplexity] = useState('');
+  
+  // Streaming state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [streamProgress, setStreamProgress] = useState<{
+    currentDay?: string;
+    dayIndex?: number;
+    totalDays?: number;
+    message?: string;
+    completedDays?: any[];
+    allMeals?: any[];
+  }>({});
 
   const steps = ['Plan Details', 'Preferences', 'Generate Plan'];
 
@@ -115,6 +126,8 @@ const CreatePlan: React.FC = () => {
   const onSubmit = async (data: DietPlanFormData) => {
     setError('');
     setSuccess('');
+    setIsGenerating(true);
+    setStreamProgress({});
 
     try {
       const planInput: DietPlanInput = {
@@ -125,18 +138,70 @@ const CreatePlan: React.FC = () => {
         customRequirements: data.customRequirements || '',
       };
 
-      const result = await apiService.generateDietPlan(planInput);
+      const completedDays: any[] = [];
+      let allMeals: any[] = [];
+
+      // Use streaming API
+      await apiService.generateDietPlanStream(planInput, (event) => {
+        console.log('Stream event:', event);
+
+        switch (event.type) {
+          case 'start':
+            setStreamProgress({
+              totalDays: event.data.totalDays,
+              message: 'Starting diet plan generation...'
+            });
+            break;
+
+          case 'progress':
+            setStreamProgress(prev => ({
+              ...prev,
+              currentDay: event.data.day,
+              dayIndex: event.data.dayIndex,
+              message: event.data.message
+            }));
+            break;
+
+          case 'day_complete':
+            completedDays.push({
+              day: event.data.day,
+              meals: event.data.meals
+            });
+            setStreamProgress(prev => ({
+              ...prev,
+              completedDays: [...completedDays]
+            }));
+            break;
+
+          case 'plan_complete':
+            allMeals = event.data.meals;
+            setStreamProgress(prev => ({
+              ...prev,
+              allMeals,
+              message: 'Saving diet plan...'
+            }));
+            break;
+
+          case 'error':
+            throw new Error(event.data.error);
+        }
+      });
+
+      // Save the complete plan to database
+      const result = await apiService.saveDietPlan(planInput, allMeals);
       
       if (result.success) {
-        setSuccess('Diet plan generated successfully!');
+        setSuccess('Diet plan generated and saved successfully!');
         setTimeout(() => {
           navigate('/diet-plans');
         }, 2000);
       } else {
-        setError(result.error || 'Failed to generate diet plan');
+        setError(result.error || 'Failed to save diet plan');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to generate diet plan');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -314,57 +379,106 @@ const CreatePlan: React.FC = () => {
         const formValues = getValues(); // Get current form values directly
         return (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="h5" gutterBottom>
-              Ready to Generate Your Diet Plan!
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              We'll create a personalized weekly meal plan based on your preferences and requirements.
-              This may take a few moments.
-            </Typography>
-            
-            <Paper variant="outlined" sx={{ p: 3, mb: 3, textAlign: 'left' }}>
-              <Typography variant="h6" gutterBottom>
-                Plan Summary:
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Name:</strong> {formValues.name}
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                <strong>Start Date:</strong> {
-                  (() => {
-                    const dateValue = formValues.weekStart;
-                    if (!dateValue) {
-                      return 'Not selected';
+            {!isGenerating ? (
+              <>
+                <Typography variant="h5" gutterBottom>
+                  Ready to Generate Your Diet Plan!
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  We'll create a personalized weekly meal plan based on your preferences and requirements.
+                  This may take a few moments.
+                </Typography>
+                
+                <Paper variant="outlined" sx={{ p: 3, mb: 3, textAlign: 'left' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Plan Summary:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Name:</strong> {formValues.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Start Date:</strong> {
+                      (() => {
+                        const dateValue = formValues.weekStart;
+                        if (!dateValue) {
+                          return 'Not selected';
+                        }
+                        const date = new Date(dateValue);
+                        if (isNaN(date.getTime())) {
+                          return 'Invalid date';
+                        }
+                        return date.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        });
+                      })()
                     }
-                    const date = new Date(dateValue);
-                    if (isNaN(date.getTime())) {
-                      return 'Invalid date';
-                    }
-                    return date.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    });
-                  })()
-                }
-              </Typography>
-              {selectedPreferences.length > 0 && (
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Preferences:</strong> {selectedPreferences.join(', ')}
+                  </Typography>
+                  {selectedPreferences.length > 0 && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Preferences:</strong> {selectedPreferences.join(', ')}
+                    </Typography>
+                  )}
+                  {complexity && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Complexity:</strong> {complexity}
+                    </Typography>
+                  )}
+                  {formValues.description && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Description:</strong> {formValues.description}
+                    </Typography>
+                  )}
+                </Paper>
+              </>
+            ) : (
+              <>
+                <Typography variant="h5" gutterBottom>
+                  Generating Your Diet Plan...
                 </Typography>
-              )}
-              {complexity && (
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Complexity:</strong> {complexity}
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  {streamProgress.message || 'Starting generation...'}
                 </Typography>
-              )}
-              {formValues.description && (
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Description:</strong> {formValues.description}
-                </Typography>
-              )}
-            </Paper>
+                
+                <Box sx={{ width: '100%', mb: 3 }}>
+                  <CircularProgress 
+                    variant={streamProgress.totalDays ? "determinate" : "indeterminate"}
+                    value={streamProgress.totalDays ? ((streamProgress.dayIndex || 0) / streamProgress.totalDays) * 100 : undefined}
+                    size={80}
+                    sx={{ mb: 2 }}
+                  />
+                  {streamProgress.totalDays && (
+                    <Typography variant="body2" color="text.secondary">
+                      Day {(streamProgress.dayIndex || 0) + 1} of {streamProgress.totalDays}
+                    </Typography>
+                  )}
+                </Box>
+
+                {streamProgress.completedDays && streamProgress.completedDays.length > 0 && (
+                  <Paper variant="outlined" sx={{ p: 3, textAlign: 'left', maxHeight: 400, overflow: 'auto' }}>
+                    <Typography variant="h6" gutterBottom>
+                      Generated Days:
+                    </Typography>
+                    {streamProgress.completedDays.map((dayData, index) => (
+                      <Box key={index} sx={{ mb: 2, pb: 2, borderBottom: index < streamProgress.completedDays!.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                          {dayData.day}
+                        </Typography>
+                        <Box sx={{ pl: 2 }}>
+                          {dayData.meals.map((meal: any, mealIndex: number) => (
+                            <Typography key={mealIndex} variant="body2" sx={{ mb: 0.5 }}>
+                              • {meal.mealType}: {meal.name}
+                            </Typography>
+                          ))}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Paper>
+                )}
+              </>
+            )}
           </Box>
         );
 
@@ -425,7 +539,7 @@ const CreatePlan: React.FC = () => {
             <Button
               variant="outlined"
               onClick={handleBack}
-              disabled={activeStep === 0}
+              disabled={activeStep === 0 || isGenerating}
             >
               Back
             </Button>
@@ -436,7 +550,7 @@ const CreatePlan: React.FC = () => {
               <Button
                 type="submit"
                 variant="contained"
-                disabled={!canSubmit}
+                disabled={!canSubmit || isGenerating}
                 sx={{
                   bgcolor: '#4ca6c9',
                   '&:hover': { bgcolor: '#3c89af' },
@@ -447,7 +561,7 @@ const CreatePlan: React.FC = () => {
                   boxShadow: 'none',
                 }}
               >
-                {isSubmitting ? (
+                {isGenerating ? (
                   <>
                     <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                     Generating...

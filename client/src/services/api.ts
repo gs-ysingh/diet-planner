@@ -102,6 +102,60 @@ class ApiService {
     return data.login;
   }
 
+  async verifyEmail(token: string): Promise<AuthPayload> {
+    const query = `
+      mutation VerifyEmail($token: String!) {
+        verifyEmail(token: $token) {
+          token
+          user {
+            id
+            email
+            name
+            emailVerified
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const data = await this.makeRequest(query, { token });
+    return data.verifyEmail;
+  }
+
+  async resendVerification(email: string): Promise<boolean> {
+    const query = `
+      mutation ResendVerification($email: String!) {
+        resendVerification(email: $email)
+      }
+    `;
+
+    const data = await this.makeRequest(query, { email });
+    return data.resendVerification;
+  }
+
+  async forgotPassword(email: string): Promise<boolean> {
+    const query = `
+      mutation ForgotPassword($email: String!) {
+        forgotPassword(email: $email)
+      }
+    `;
+
+    const data = await this.makeRequest(query, { email });
+    return data.forgotPassword;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const query = `
+      mutation ResetPassword($token: String!, $newPassword: String!) {
+        resetPassword(token: $token, newPassword: $newPassword)
+      }
+    `;
+
+    const data = await this.makeRequest(query, { token, newPassword });
+    return data.resetPassword;
+  }
+
   // User methods
   async getMe(): Promise<User> {
     const query = `
@@ -381,6 +435,131 @@ class ApiService {
 
     const data = await this.makeRequest(query, { dietPlanId });
     return data.generatePDF;
+  }
+
+  // Streaming diet plan generation
+  async generateDietPlanStream(
+    input: DietPlanInput,
+    onProgress: (event: { type: string; data: any }) => void
+  ): Promise<void> {
+    const API_STREAM_URL = process.env.REACT_APP_GRAPHQL_ENDPOINT?.replace('/graphql', '/api/generate-diet-plan-stream') 
+      || 'http://localhost:4000/api/generate-diet-plan-stream';
+
+    return new Promise((resolve, reject) => {
+      fetch(API_STREAM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.token && { Authorization: `Bearer ${this.token}` })
+        },
+        body: JSON.stringify({ input })
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+
+          if (!reader) {
+            throw new Error('Response body reader not available');
+          }
+
+          const readStream = async () => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                  resolve();
+                  break;
+                }
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    try {
+                      const eventData = JSON.parse(line.substring(6));
+                      onProgress(eventData);
+
+                      if (eventData.type === 'complete') {
+                        resolve();
+                        return;
+                      }
+
+                      if (eventData.type === 'error') {
+                        reject(new Error(eventData.error || 'Streaming error'));
+                        return;
+                      }
+                    } catch (parseError) {
+                      console.error('Error parsing SSE data:', parseError);
+                    }
+                  }
+                }
+              }
+            } catch (streamError) {
+              reject(streamError);
+            }
+          };
+
+          readStream();
+        })
+        .catch(error => {
+          reject(error);
+        });
+    });
+  }
+
+  // Save the generated diet plan to database
+  async saveDietPlan(input: DietPlanInput, meals: any[]): Promise<{ success: boolean; dietPlan?: DietPlan; error?: string }> {
+    const query = `
+      mutation SaveDietPlan($input: SaveDietPlanInput!) {
+        saveDietPlan(input: $input) {
+          success
+          dietPlan {
+            id
+            name
+            description
+            weekStart
+            weekEnd
+            isActive
+            createdAt
+            updatedAt
+            meals {
+              id
+              day
+              mealType
+              name
+              description
+              calories
+              protein
+              carbs
+              fat
+              fiber
+              ingredients
+              instructions
+              prepTime
+              cookTime
+              servings
+            }
+          }
+          error
+        }
+      }
+    `;
+
+    const saveInput = {
+      name: input.name,
+      description: input.description,
+      weekStart: input.weekStart,
+      meals
+    };
+
+    const data = await this.makeRequest(query, { input: saveInput });
+    return data.saveDietPlan;
   }
 }
 

@@ -79,6 +79,9 @@ const Register: React.FC = () => {
           preferences: selectedPreferences,
         };
         await register(registrationData);
+        // Show success message about email verification
+        setError('');
+        alert('Registration successful! Please check your email to verify your account.');
         navigate('/dashboard');
       } catch (err: any) {
         setError(err.message || 'Registration failed');

@@ -133,6 +133,26 @@ const Login: React.FC = () => {
               error={formik.touched.password && Boolean(formik.errors.password)}
               helperText={formik.touched.password && formik.errors.password}
             />
+            
+            <Box sx={{ textAlign: 'right', mt: 1 }}>
+              <Link
+                component="button"
+                variant="body2"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/forgot-password');
+                }}
+                sx={{ 
+                  color: '#4ca6c9',
+                  textDecoration: 'none',
+                  fontWeight: 500,
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                Forgot password?
+              </Link>
+            </Box>
+            
             <Button
               type="submit"
               fullWidth

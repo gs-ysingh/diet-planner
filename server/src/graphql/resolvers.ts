@@ -4,7 +4,9 @@ import bcrypt from 'bcryptjs';
 import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-express';
 import { ModernAIService } from '../services/ai.service';
 import { PDFService } from '../services/pdf.service';
+import { emailService } from '../services/email.service';
 import { validatePasswordSecurity, sanitizeInput, validateEmail, checkLoginRateLimit } from '../middleware/security';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 const aiService = new ModernAIService();
@@ -212,6 +214,9 @@ export const resolvers = {
       }
 
       const hashedPassword = await bcrypt.hash(input.password, 12);
+      
+      // Generate verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
 
       const user = await prisma.user.create({
         data: {
@@ -219,9 +224,15 @@ export const resolvers = {
           email,
           name,
           password: hashedPassword,
-          preferences: input.preferences || []
+          preferences: input.preferences || [],
+          verificationToken,
+          emailVerified: false
         }
       });
+      
+      // Send verification email (don't await to not block response)
+      emailService.sendVerificationEmail(user.email, user.name, verificationToken)
+        .catch(err => console.error('Failed to send verification email:', err));
 
       const token = generateToken(user.id, user.email);
 
@@ -262,6 +273,135 @@ export const resolvers = {
         token,
         user
       };
+    },
+
+    verifyEmail: async (_: any, { token }: { token: string }) => {
+      const user = await prisma.user.findUnique({
+        where: { verificationToken: token }
+      });
+
+      if (!user) {
+        throw new UserInputError('Invalid or expired verification token');
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: true,
+          verificationToken: null
+        }
+      });
+
+      const authToken = generateToken(updatedUser.id, updatedUser.email);
+
+      return {
+        token: authToken,
+        user: updatedUser
+      };
+    },
+
+    resendVerification: async (_: any, { email }: { email: string }) => {
+      const sanitizedEmail = sanitizeInput(email).toLowerCase();
+      
+      if (!validateEmail(sanitizedEmail)) {
+        throw new UserInputError('Invalid email format');
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: sanitizedEmail }
+      });
+
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return true;
+      }
+
+      if (user.emailVerified) {
+        throw new UserInputError('Email is already verified');
+      }
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { verificationToken }
+      });
+
+      await emailService.sendVerificationEmail(user.email, user.name, verificationToken);
+
+      return true;
+    },
+
+    forgotPassword: async (_: any, { email }: { email: string }) => {
+      const sanitizedEmail = sanitizeInput(email).toLowerCase();
+      
+      if (!validateEmail(sanitizedEmail)) {
+        throw new UserInputError('Invalid email format');
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email: sanitizedEmail }
+      });
+
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return true;
+      }
+
+      // Generate reset token and expiry (1 hour from now)
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken,
+          resetTokenExpiry
+        }
+      });
+
+      await emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+
+      return true;
+    },
+
+    resetPassword: async (_: any, { token, newPassword }: { token: string; newPassword: string }) => {
+      // Validate password security
+      const passwordValidation = validatePasswordSecurity(newPassword);
+      if (!passwordValidation.isValid) {
+        throw new UserInputError(`Password requirements not met: ${passwordValidation.errors.join(', ')}`);
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { resetToken: token }
+      });
+
+      if (!user || !user.resetTokenExpiry) {
+        throw new UserInputError('Invalid or expired reset token');
+      }
+
+      // Check if token has expired
+      if (user.resetTokenExpiry < new Date()) {
+        throw new UserInputError('Reset token has expired');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          resetToken: null,
+          resetTokenExpiry: null
+        }
+      });
+
+      // Send confirmation email (don't await)
+      emailService.sendPasswordChangedConfirmation(user.email, user.name)
+        .catch(err => console.error('Failed to send password changed confirmation:', err));
+
+      return true;
     },
 
     updateProfile: async (_: any, { input }: { input: any }, context: Context) => {
@@ -346,6 +486,60 @@ export const resolvers = {
           success: false,
           dietPlan: null,
           error: 'Failed to generate diet plan. Please try again.'
+        };
+      }
+    },
+
+    saveDietPlan: async (_: any, { input }: { input: any }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      try {
+        // Deactivate existing active diet plans
+        await prisma.dietPlan.updateMany({
+          where: {
+            userId: context.user.id,
+            isActive: true
+          },
+          data: { isActive: false }
+        });
+
+        // Calculate week end date
+        const weekStart = new Date(input.weekStart);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Create diet plan in database
+        const dietPlan = await prisma.dietPlan.create({
+          data: {
+            userId: context.user.id,
+            name: input.name,
+            description: input.description || 'Personalized diet plan',
+            weekStart,
+            weekEnd,
+            isActive: true,
+            meals: {
+              create: input.meals
+            }
+          },
+          include: {
+            user: true,
+            meals: true
+          }
+        });
+
+        return {
+          success: true,
+          dietPlan,
+          error: null
+        };
+      } catch (error) {
+        console.error('Error saving diet plan:', error);
+        return {
+          success: false,
+          dietPlan: null,
+          error: 'Failed to save diet plan. Please try again.'
         };
       }
     },

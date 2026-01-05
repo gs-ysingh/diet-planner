@@ -16,6 +16,7 @@ export const typeDefs = gql`
     goal: Goal
     activityLevel: ActivityLevel
     preferences: [String!]!
+    emailVerified: Boolean!
     createdAt: DateTime!
     updatedAt: DateTime!
     dietPlans: [DietPlan!]!
@@ -139,6 +140,30 @@ export const typeDefs = gql`
     customRequirements: String
   }
 
+  input MealInput {
+    day: DayOfWeek!
+    mealType: MealType!
+    name: String!
+    description: String
+    calories: Int
+    protein: Float
+    carbs: Float
+    fat: Float
+    fiber: Float
+    ingredients: [String!]!
+    instructions: String
+    prepTime: Int
+    cookTime: Int
+    servings: Int
+  }
+
+  input SaveDietPlanInput {
+    name: String!
+    description: String
+    weekStart: DateTime!
+    meals: [MealInput!]!
+  }
+
   input MealUpdateInput {
     id: ID!
     name: String
@@ -166,8 +191,13 @@ export const typeDefs = gql`
   type Mutation {
     register(input: UserRegistrationInput!): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
+    verifyEmail(token: String!): AuthPayload!
+    resendVerification(email: String!): Boolean!
+    forgotPassword(email: String!): Boolean!
+    resetPassword(token: String!, newPassword: String!): Boolean!
     updateProfile(input: UserUpdateInput!): User!
     generateDietPlan(input: DietPlanInput!): DietPlanGenerationResult!
+    saveDietPlan(input: SaveDietPlanInput!): DietPlanGenerationResult!
     updateDietPlan(id: ID!, input: DietPlanInput!): DietPlan!
     deleteDietPlan(id: ID!): Boolean!
     setActiveDietPlan(id: ID!): DietPlan!

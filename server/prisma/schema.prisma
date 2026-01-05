@@ -23,6 +23,10 @@ model User {
   goal        Goal?
   activityLevel ActivityLevel?
   preferences String[] // Dietary preferences, allergies, etc.
+  emailVerified Boolean  @default(false)
+  verificationToken String?  @unique
+  resetToken    String?  @unique
+  resetTokenExpiry DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   

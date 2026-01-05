@@ -6,6 +6,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import Login from './components/Login';
 import Register from './components/Register';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
+import EmailVerification from './components/EmailVerification';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import DietPlans from './pages/DietPlans';
@@ -66,6 +69,9 @@ const AppContent: React.FC = () => {
             </PublicRoute>
           }
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<EmailVerification />} />
         <Route
           path="/dashboard"
           element={

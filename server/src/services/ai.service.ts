@@ -380,4 +380,224 @@ export class ModernAIService {
       return 'Meal suggestions temporarily unavailable.';
     }
   }
+
+  // Streaming method to generate diet plan day by day
+  async generateDietPlanStream(
+    user: User,
+    input: DietPlanInput,
+    onProgress: (event: { type: string; data: any }) => void
+  ) {
+    try {
+      console.log('🔄 Starting streaming diet plan generation...');
+      
+      const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+      const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+      const allMeals: any[] = [];
+
+      // Send initial event
+      onProgress({
+        type: 'start',
+        data: { totalDays: days.length }
+      });
+
+      // Generate meals for each day
+      for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+        const day = days[dayIndex];
+        console.log(`📅 Generating meals for ${day}...`);
+
+        onProgress({
+          type: 'progress',
+          data: {
+            day,
+            dayIndex,
+            totalDays: days.length,
+            message: `Generating meals for ${day}...`
+          }
+        });
+
+        const dayMeals: any[] = [];
+
+        // Generate each meal type for the day
+        for (const mealType of mealTypes) {
+          const mealPrompt = PromptTemplate.fromTemplate(`
+            Create a single {mealType} meal for {day} in a weekly diet plan.
+
+            User Profile:
+            - Age: {age}, Weight: {weight}kg, Height: {height}cm
+            - Gender: {gender}, Nationality: {nationality}
+            - Goal: {goal}, Activity: {activityLevel}
+            - Preferences: {userPreferences}, {inputPreferences}
+            - Requirements: {customRequirements}
+
+            Generate a realistic, nutritious {mealType} appropriate for {day}.
+            Consider the user's profile, preferences, and cultural background.
+
+            CRITICAL: Respond with ONLY valid JSON, no markdown.
+
+            {{
+              "name": "Meal name",
+              "description": "Brief description",
+              "calories": 400,
+              "protein": 25,
+              "carbs": 45,
+              "fat": 15,
+              "fiber": 8,
+              "ingredients": ["ingredient1", "ingredient2"],
+              "instructions": "Detailed cooking steps",
+              "prepTime": 15,
+              "cookTime": 30,
+              "servings": 2
+            }}
+          `);
+
+          const chain = RunnableSequence.from([
+            mealPrompt,
+            this.chatModel,
+          ]);
+
+          try {
+            const rawResponse = await chain.invoke({
+              day,
+              mealType,
+              age: user.age || 'Not specified',
+              weight: user.weight || 'Not specified',
+              height: user.height || 'Not specified',
+              gender: user.gender || 'Not specified',
+              nationality: user.nationality || 'Not specified',
+              goal: user.goal || 'General health and wellness',
+              activityLevel: user.activityLevel || 'Moderate',
+              userPreferences: user.preferences.join(', ') || 'None',
+              inputPreferences: input.preferences.join(', ') || 'None',
+              customRequirements: input.customRequirements || 'None',
+            });
+
+            // Parse the response
+            const content = rawResponse?.content || rawResponse;
+            let mealData;
+            
+            if (typeof content === 'string') {
+              const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+              const jsonString = jsonMatch ? jsonMatch[1] : content;
+              mealData = JSON.parse(jsonString);
+            } else {
+              mealData = content;
+            }
+
+            const meal = {
+              day,
+              mealType,
+              ...this.formatMealResponse(mealData)
+            };
+
+            dayMeals.push(meal);
+            allMeals.push(meal);
+
+          } catch (mealError) {
+            console.error(`Error generating ${mealType} for ${day}:`, mealError);
+            // Use fallback meal
+            const fallbackMeal = this.getFallbackMeal(day, mealType);
+            dayMeals.push(fallbackMeal);
+            allMeals.push(fallbackMeal);
+          }
+        }
+
+        // Send the completed day's meals
+        onProgress({
+          type: 'day_complete',
+          data: {
+            day,
+            dayIndex,
+            meals: dayMeals,
+            totalDays: days.length
+          }
+        });
+      }
+
+      // Send final complete event with all meals
+      onProgress({
+        type: 'plan_complete',
+        data: {
+          description: `Personalized ${days.length}-day diet plan tailored to your goals and preferences`,
+          meals: allMeals,
+          totalMeals: allMeals.length
+        }
+      });
+
+      console.log('✅ Streaming diet plan generation complete');
+
+    } catch (error) {
+      console.error('❌ Streaming generation error:', error);
+      onProgress({
+        type: 'error',
+        data: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
+    }
+  }
+
+  private getFallbackMeal(day: string, mealType: string): any {
+    const fallbackMeals: any = {
+      BREAKFAST: {
+        name: 'Healthy Breakfast Bowl',
+        description: 'Nutritious breakfast option',
+        calories: 350,
+        protein: 15,
+        carbs: 45,
+        fat: 12,
+        fiber: 8,
+        ingredients: ['Oats', 'Berries', 'Nuts', 'Yogurt'],
+        instructions: 'Mix ingredients and enjoy',
+        prepTime: 10,
+        cookTime: 5,
+        servings: 1
+      },
+      LUNCH: {
+        name: 'Balanced Lunch',
+        description: 'Well-rounded lunch meal',
+        calories: 450,
+        protein: 30,
+        carbs: 40,
+        fat: 18,
+        fiber: 6,
+        ingredients: ['Chicken', 'Vegetables', 'Rice', 'Olive oil'],
+        instructions: 'Prepare and cook ingredients',
+        prepTime: 15,
+        cookTime: 20,
+        servings: 1
+      },
+      DINNER: {
+        name: 'Wholesome Dinner',
+        description: 'Satisfying dinner option',
+        calories: 500,
+        protein: 35,
+        carbs: 45,
+        fat: 20,
+        fiber: 7,
+        ingredients: ['Fish', 'Vegetables', 'Quinoa', 'Spices'],
+        instructions: 'Cook ingredients properly',
+        prepTime: 15,
+        cookTime: 25,
+        servings: 1
+      },
+      SNACK: {
+        name: 'Healthy Snack',
+        description: 'Nutritious snack option',
+        calories: 180,
+        protein: 8,
+        carbs: 20,
+        fat: 9,
+        fiber: 4,
+        ingredients: ['Nuts', 'Fruit', 'Yogurt'],
+        instructions: 'Combine and enjoy',
+        prepTime: 5,
+        cookTime: 0,
+        servings: 1
+      }
+    };
+
+    return {
+      day,
+      mealType,
+      ...fallbackMeals[mealType]
+    };
+  }
 }

@@ -45,7 +45,16 @@ const Dashboard: React.FC = () => {
     if (!activePlan) return [];
     
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-    return activePlan.meals.filter(meal => meal.day === today);
+    const filtered = activePlan.meals.filter(meal => meal.day === today);
+    
+    // Remove duplicates by mealType and name combination
+    const uniqueMeals = filtered.filter((meal, index, self) =>
+      index === self.findIndex((m) => 
+        m.mealType === meal.mealType && m.name === meal.name
+      )
+    );
+    
+    return uniqueMeals;
   };
 
   const todaysMeals = getTodaysMeals();
