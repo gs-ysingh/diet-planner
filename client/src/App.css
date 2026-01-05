@@ -2,21 +2,21 @@
 
 .App {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: #f8fafc;
   position: relative;
 }
 
 /* Header Styles */
 .app-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .app-header.scrolled {
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Logo Animation */
@@ -38,16 +38,16 @@
   font-weight: 500;
   padding: 8px 16px;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .nav-item:hover {
-  background: rgba(22, 160, 133, 0.1);
-  color: var(--primary-color);
+  background: rgba(76, 166, 201, 0.08);
+  color: #4ca6c9;
 }
 
 .nav-item.active {
-  background: var(--gradient-primary);
+  background: #4ca6c9;
   color: white;
 }
 
@@ -68,27 +68,26 @@
 
 /* Card Styles */
 .feature-card {
-  background: var(--glass-background);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
   padding: 32px;
   text-align: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow-light);
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-heavy);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .feature-card .icon {
   width: 64px;
   height: 64px;
   margin: 0 auto 20px;
-  background: var(--gradient-primary);
-  border-radius: 16px;
+  background: #4ca6c9;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;

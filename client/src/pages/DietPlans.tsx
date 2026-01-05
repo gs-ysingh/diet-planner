@@ -157,7 +157,7 @@ const DietPlans: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ color: '#2e7d32', fontWeight: 600 }}>
+        <Typography variant="h4" component="h1" sx={{ color: '#212121', fontWeight: 700 }}>
           My Diet Plans
         </Typography>
         <Button
@@ -165,8 +165,12 @@ const DietPlans: React.FC = () => {
           startIcon={<Add />}
           onClick={() => navigate('/create-plan')}
           sx={{
-            bgcolor: '#2e7d32',
-            '&:hover': { bgcolor: '#1b5e20' },
+            bgcolor: '#4ca6c9',
+            '&:hover': { bgcolor: '#3c89af' },
+            borderRadius: 2,
+            textTransform: 'none',
+            fontWeight: 600,
+            boxShadow: 'none',
           }}
         >
           Create New Plan
@@ -193,8 +197,12 @@ const DietPlans: React.FC = () => {
             startIcon={<Add />}
             onClick={() => navigate('/create-plan')}
             sx={{
-              bgcolor: '#2e7d32',
-              '&:hover': { bgcolor: '#1b5e20' },
+              bgcolor: '#4ca6c9',
+              '&:hover': { bgcolor: '#3c89af' },
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: 'none',
             }}
           >
             Create Your First Plan

@@ -108,22 +108,40 @@ const Profile: React.FC = () => {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#2e7d32', fontWeight: 600 }}>
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: { xs: 3, md: 5 },
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 3,
+        }}
+      >
+        <Typography 
+          variant="h3" 
+          component="h1" 
+          gutterBottom 
+          sx={{ 
+            color: '#212121', 
+            fontWeight: 700,
+            fontSize: { xs: '1.75rem', md: '2.5rem' },
+            mb: 1,
+          }}
+        >
           Profile Settings
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, fontSize: '1.05rem' }}>
           Update your personal information to get more accurate diet recommendations.
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
+          <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
             {success}
           </Alert>
         )}
@@ -300,10 +318,15 @@ const Profile: React.FC = () => {
               variant="contained"
               disabled={loading}
               sx={{
-                bgcolor: '#2e7d32',
-                '&:hover': { bgcolor: '#1b5e20' },
+                bgcolor: '#4ca6c9',
+                '&:hover': { bgcolor: '#3c89af' },
                 px: 4,
                 py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1.05rem',
+                fontWeight: 600,
+                boxShadow: 'none',
               }}
             >
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Update Profile'}

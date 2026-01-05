@@ -3,33 +3,33 @@
 
 /* CSS Variables for consistent theming */
 :root {
-  --primary-color: #16a085;
-  --primary-light: #48c9b0;
-  --primary-dark: #138d75;
-  --secondary-color: #f39c12;
-  --secondary-light: #f8c471;
-  --secondary-dark: #d68910;
-  --purple-accent: #8e44ad;
-  --purple-light: #bb8fce;
-  --purple-dark: #7d3c98;
-  --success-color: #27ae60;
-  --warning-color: #e67e22;
-  --error-color: #e74c3c;
-  --info-color: #3498db;
-  --text-primary: #2c3e50;
-  --text-secondary: #5d6d7e;
-  --background-default: #fafbfc;
+  --primary-color: #4ca6c9;
+  --primary-light: #82c1d9;
+  --primary-dark: #3c89af;
+  --secondary-color: #ff9800;
+  --secondary-light: #ffb74d;
+  --secondary-dark: #f57c00;
+  --purple-accent: #8b5cf6;
+  --purple-light: #c4b5fd;
+  --purple-dark: #6d28d9;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  --info-color: #3b82f6;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --background-default: #f8fafc;
   --background-paper: #ffffff;
-  --border-color: #ecf0f1;
-  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --shadow-heavy: 0 12px 40px rgba(0, 0, 0, 0.12);
-  --gradient-primary: linear-gradient(135deg, #16a085 0%, #138d75 100%);
-  --gradient-secondary: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
-  --gradient-purple: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
-  --gradient-background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  --glass-background: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --border-color: #e0e0e0;
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --gradient-primary: linear-gradient(135deg, #4ca6c9 0%, #3c89af 100%);
+  --gradient-secondary: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  --gradient-purple: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  --gradient-background: #f8fafc;
+  --glass-background: rgba(255, 255, 255, 0.98);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 /* Global reset and base styles */
