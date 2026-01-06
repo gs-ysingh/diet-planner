@@ -34,7 +34,7 @@
     "nodemailer": "^7.0.12",
     "openai": "^4.20.1",
     "puppeteer": "^24.15.0",
-    "validator": "^13.11.0",
+    "validator": "^13.15.22",
     "zod": "^3.25.76"
   },
   "devDependencies": {
