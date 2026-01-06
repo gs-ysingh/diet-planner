@@ -54,15 +54,32 @@ const startServer = async () => {
 
   await server.start();
 
+  // Parse allowed origins from environment variable
+  const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : ['http://localhost:3000'];
+
+  // CORS configuration
+  const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  };
+
   // CORS and GraphQL middleware
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-      credentials: true,
-      methods: ['GET', 'POST'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    }),
+    cors<cors.CorsRequest>(corsOptions),
     express.json({ limit: '10mb' }),
     expressMiddleware(server, {
       context: createContext,
@@ -75,21 +92,11 @@ const startServer = async () => {
   });
 
   // Streaming diet plan generation endpoint
-  app.options('/api/generate-diet-plan-stream', cors<cors.CorsRequest>({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
-    methods: ['POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
+  app.options('/api/generate-diet-plan-stream', cors<cors.CorsRequest>(corsOptions));
   
   app.post(
     '/api/generate-diet-plan-stream',
-    cors<cors.CorsRequest>({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-      credentials: true,
-      methods: ['POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    }),
+    cors<cors.CorsRequest>(corsOptions),
     express.json(),
     async (req, res) => {
       try {
