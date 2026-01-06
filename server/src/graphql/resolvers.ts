@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { AuthenticationError, ForbiddenError, UserInputError } from 'apollo-server-express';
 import { ModernAIService } from '../services/ai.service';
 import { PDFService } from '../services/pdf.service';
+import { CSVService } from '../services/csv.service';
 import { emailService } from '../services/email.service';
 import { validatePasswordSecurity, sanitizeInput, validateEmail, checkLoginRateLimit } from '../middleware/security';
 import crypto from 'crypto';
@@ -11,6 +12,7 @@ import crypto from 'crypto';
 const prisma = new PrismaClient();
 const aiService = new ModernAIService();
 const pdfService = new PDFService();
+const csvService = new CSVService();
 
 interface Context {
   user?: {
@@ -744,6 +746,62 @@ export const resolvers = {
       } catch (error) {
         console.error('Error generating PDF:', error);
         throw new Error('Failed to generate PDF. Please try again.');
+      }
+    },
+    generateCSV: async (_: any, { dietPlanId }: { dietPlanId: string }, context: Context) => {
+      if (!context.user) {
+        throw new AuthenticationError('Not authenticated');
+      }
+
+      const dietPlan = await prisma.dietPlan.findUnique({
+        where: { id: dietPlanId },
+        include: {
+          user: true,
+          meals: {
+            orderBy: [
+              { day: 'asc' },
+              { mealType: 'asc' }
+            ]
+          }
+        }
+      });
+
+      if (!dietPlan || dietPlan.userId !== context.user.id) {
+        throw new ForbiddenError('Diet plan not found or access denied');
+      }
+
+      try {
+        // Convert null values to undefined for CSV service compatibility
+        const csvCompatiblePlan = {
+          ...dietPlan,
+          description: dietPlan.description || undefined,
+          user: {
+            ...dietPlan.user,
+            age: dietPlan.user.age || undefined,
+            weight: dietPlan.user.weight || undefined,
+            height: dietPlan.user.height || undefined,
+            goal: dietPlan.user.goal || undefined,
+          },
+          meals: dietPlan.meals.map(meal => ({
+            ...meal,
+            description: meal.description || undefined,
+            calories: meal.calories || undefined,
+            protein: meal.protein || undefined,
+            carbs: meal.carbs || undefined,
+            fat: meal.fat || undefined,
+            fiber: meal.fiber || undefined,
+            instructions: meal.instructions || undefined,
+            prepTime: meal.prepTime || undefined,
+            cookTime: meal.cookTime || undefined,
+            servings: meal.servings || undefined,
+          }))
+        };
+        
+        const csvContent = csvService.generateDietPlanCSV(csvCompatiblePlan);
+        return csvContent;
+      } catch (error) {
+        console.error('Error generating CSV:', error);
+        throw new Error('Failed to generate CSV. Please try again.');
       }
     }
   }

@@ -204,5 +204,6 @@ export const typeDefs = gql`
     updateMeal(input: MealUpdateInput!): Meal!
     regenerateMeal(mealId: ID!, customRequirements: String): Meal!
     generatePDF(dietPlanId: ID!): String! # Returns base64 encoded PDF
+    generateCSV(dietPlanId: ID!): String! # Returns CSV content
   }
 `;

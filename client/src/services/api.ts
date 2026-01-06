@@ -437,6 +437,17 @@ class ApiService {
     return data.generatePDF;
   }
 
+  async generateCSV(dietPlanId: string): Promise<string> {
+    const query = `
+      mutation GenerateCSV($dietPlanId: ID!) {
+        generateCSV(dietPlanId: $dietPlanId)
+      }
+    `;
+
+    const data = await this.makeRequest(query, { dietPlanId });
+    return data.generateCSV;
+  }
+
   // Streaming diet plan generation
   async generateDietPlanStream(
     input: DietPlanInput,

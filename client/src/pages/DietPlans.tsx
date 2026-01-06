@@ -45,6 +45,7 @@ const DietPlans: React.FC = () => {
     planId: null,
   });
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+  const [csvLoading, setCsvLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDietPlans();
@@ -111,6 +112,29 @@ const DietPlans: React.FC = () => {
       console.error(err);
     } finally {
       setPdfLoading(null);
+    }
+  };
+
+  const handleGenerateCSV = async (planId: string, planName: string) => {
+    setCsvLoading(planId);
+    try {
+      const csvContent = await apiService.generateCSV(planId);
+      
+      // Create a blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${planName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_diet_plan.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError('Failed to generate CSV');
+      console.error(err);
+    } finally {
+      setCsvLoading(null);
     }
   };
 
@@ -238,8 +262,21 @@ const DietPlans: React.FC = () => {
                         onClick={() => handleGeneratePDF(plan.id, plan.name)}
                         disabled={pdfLoading === plan.id}
                         color="primary"
+                        title="Download as PDF"
                       >
                         {pdfLoading === plan.id ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <GetApp />
+                        )}
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleGenerateCSV(plan.id, plan.name)}
+                        disabled={csvLoading === plan.id}
+                        color="secondary"
+                        title="Download as CSV"
+                      >
+                        {csvLoading === plan.id ? (
                           <CircularProgress size={20} />
                         ) : (
                           <GetApp />
@@ -341,6 +378,14 @@ const DietPlans: React.FC = () => {
                     startIcon={pdfLoading === plan.id ? <CircularProgress size={16} /> : <GetApp />}
                   >
                     Download PDF
+                  </Button>
+                  <Button
+                    onClick={() => handleGenerateCSV(plan.id, plan.name)}
+                    disabled={csvLoading === plan.id}
+                    startIcon={csvLoading === plan.id ? <CircularProgress size={16} /> : <GetApp />}
+                    color="secondary"
+                  >
+                    Download CSV
                   </Button>
                 </CardActions>
               </Card>
