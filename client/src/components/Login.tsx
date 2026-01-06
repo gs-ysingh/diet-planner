@@ -14,6 +14,8 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { trackAuth, trackFormSubmission } from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const validationSchema = yup.object({
   email: yup.string().email('Enter a valid email').required('Email is required'),
@@ -26,6 +28,9 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  // Track engagement time on Login page
+  useEngagementTracking('Login');
+
   const formik = useFormik({
     initialValues: {
       email: '',
@@ -37,9 +42,12 @@ const Login: React.FC = () => {
       setError('');
       try {
         await login(values.email, values.password);
+        trackAuth('login');
+        trackFormSubmission('Login', true);
         navigate('/dashboard');
       } catch (err: any) {
         setError(err.message || 'Login failed');
+        trackFormSubmission('Login', false);
       } finally {
         setLoading(false);
       }

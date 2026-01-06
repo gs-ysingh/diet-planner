@@ -24,6 +24,14 @@ import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { DietPlanInput } from '../types';
+import {
+  trackCreatePlanStart,
+  trackCreatePlanSuccess,
+  trackCreatePlanError,
+  trackPlanGenerationProgress,
+  trackButtonClick,
+} from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 // Modern Zod validation schema
 const dietPlanSchema = z.object({
@@ -61,6 +69,9 @@ const CreatePlan: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [activeStep, setActiveStep] = useState(0);
   const [complexity, setComplexity] = useState('');
+  
+  // Track engagement time on this page
+  useEngagementTracking('Create Plan Page');
   
   // Streaming state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -129,6 +140,9 @@ const CreatePlan: React.FC = () => {
     setIsGenerating(true);
     setStreamProgress({});
 
+    // Track that plan creation has started
+    trackCreatePlanStart(data.name);
+
     try {
       const planInput: DietPlanInput = {
         name: data.name,
@@ -151,6 +165,8 @@ const CreatePlan: React.FC = () => {
               totalDays: event.data.totalDays,
               message: 'Starting diet plan generation...'
             });
+            // Track generation start
+            trackPlanGenerationProgress('start', undefined);
             break;
 
           case 'progress':
@@ -160,6 +176,8 @@ const CreatePlan: React.FC = () => {
               dayIndex: event.data.dayIndex,
               message: event.data.message
             }));
+            // Track progress for each day
+            trackPlanGenerationProgress('progress', event.data.day);
             break;
 
           case 'day_complete':
@@ -171,6 +189,7 @@ const CreatePlan: React.FC = () => {
               ...prev,
               completedDays: [...completedDays]
             }));
+            trackPlanGenerationProgress('day_complete', event.data.day);
             break;
 
           case 'plan_complete':
@@ -180,6 +199,7 @@ const CreatePlan: React.FC = () => {
               allMeals,
               message: 'Saving diet plan...'
             }));
+            trackPlanGenerationProgress('plan_complete', undefined);
             break;
 
           case 'error':
@@ -191,14 +211,21 @@ const CreatePlan: React.FC = () => {
       const result = await apiService.saveDietPlan(planInput, allMeals);
       
       if (result.success) {
+        // Track successful plan creation
+        trackCreatePlanSuccess(data.name, planInput.preferences);
+        
         setSuccess('Diet plan generated and saved successfully!');
         setTimeout(() => {
           navigate('/diet-plans');
         }, 2000);
       } else {
+        // Track error
+        trackCreatePlanError(result.error || 'Failed to save diet plan');
         setError(result.error || 'Failed to save diet plan');
       }
     } catch (err: any) {
+      // Track error
+      trackCreatePlanError(err.message || 'Failed to generate diet plan');
       setError(err.message || 'Failed to generate diet plan');
     } finally {
       setIsGenerating(false);
@@ -214,6 +241,8 @@ const CreatePlan: React.FC = () => {
         newPrefs = prev.filter(p => p !== preference);
       } else {
         newPrefs = [...prev, preference];
+        // Track when a preference is selected
+        trackButtonClick(`Preference: ${preference}`, 'Create Plan - Step 2');
       }
       
       return newPrefs;
@@ -228,10 +257,15 @@ const CreatePlan: React.FC = () => {
         return;
       }
     }
+    
+    // Track navigation between steps
+    trackButtonClick(`Next Step ${activeStep + 1}`, 'Create Plan Form');
+    
     setActiveStep(prev => Math.min(prev + 1, steps.length - 1));
   };
 
   const handleBack = () => {
+    trackButtonClick(`Back to Step ${activeStep - 1}`, 'Create Plan Form');
     setActiveStep(prev => Math.max(prev - 1, 0));
   };
 

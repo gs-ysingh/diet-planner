@@ -20,6 +20,8 @@ import { useNavigate } from 'react-router-dom';
 import { Gender, Goal, ActivityLevel } from '../types';
 import PasswordStrengthIndicator from './ui/PasswordStrengthIndicator';
 import { validatePasswordStrength } from '../utils/passwordSecurity';
+import { trackAuth, trackFormSubmission } from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const validationSchema = yup.object({
   name: yup.string().required('Name is required'),
@@ -50,6 +52,9 @@ const Register: React.FC = () => {
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
   const [passwordStrength, setPasswordStrength] = useState(validatePasswordStrength(''));
 
+  // Track engagement time on Register page
+  useEngagementTracking('Register');
+
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -79,12 +84,16 @@ const Register: React.FC = () => {
           preferences: selectedPreferences,
         };
         await register(registrationData);
+        // Track successful registration
+        trackAuth('register');
+        trackFormSubmission('Register', true);
         // Show success message about email verification
         setError('');
         alert('Registration successful! Please check your email to verify your account.');
         navigate('/dashboard');
       } catch (err: any) {
         setError(err.message || 'Registration failed');
+        trackFormSubmission('Register', false);
       } finally {
         setLoading(false);
       }

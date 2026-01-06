@@ -15,6 +15,8 @@ import DietPlans from './pages/DietPlans';
 import CreatePlan from './pages/CreatePlan';
 import Landing from './pages/Landing';
 import { dietPlannerTheme } from './theme/dietPlannerTheme';
+import { initGA } from './utils/analytics';
+import { usePageTracking } from './hooks/useAnalytics';
 import './App.css';
 
 
@@ -48,6 +50,9 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
 };
 
 const AppContent: React.FC = () => {
+  // Track page views automatically on route change
+  usePageTracking();
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Header />
@@ -110,6 +115,11 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  // Initialize Google Analytics on app load
+  React.useEffect(() => {
+    initGA();
+  }, []);
+
   return (
     <ThemeProvider theme={dietPlannerTheme}>
       <CssBaseline />

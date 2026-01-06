@@ -24,7 +24,6 @@ import {
   Add,
   Delete,
   GetApp,
-  Edit,
   Restaurant,
   CalendarToday,
   ExpandMore,
@@ -34,6 +33,13 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { DietPlan, DayOfWeek, MealType } from '../types';
+import {
+  trackDietPlanExport,
+  trackDietPlanDelete,
+  trackCreatePlanClick,
+  trackButtonClick,
+} from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const DietPlans: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +52,9 @@ const DietPlans: React.FC = () => {
   });
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState<string | null>(null);
+
+  // Track engagement time on Diet Plans page
+  useEngagementTracking('Diet Plans');
 
   useEffect(() => {
     fetchDietPlans();
@@ -66,6 +75,7 @@ const DietPlans: React.FC = () => {
   const handleSetActive = async (planId: string) => {
     try {
       await apiService.setActiveDietPlan(planId);
+      trackButtonClick('Set Active Plan', 'Diet Plans');
       fetchDietPlans(); // Refresh the list
     } catch (err: any) {
       setError('Failed to set active plan');
@@ -78,6 +88,7 @@ const DietPlans: React.FC = () => {
 
     try {
       await apiService.deleteDietPlan(deleteDialog.planId);
+      trackDietPlanDelete(deleteDialog.planId);
       setDietPlans(prev => prev.filter(plan => plan.id !== deleteDialog.planId));
       setDeleteDialog({ open: false, planId: null });
     } catch (err: any) {
@@ -90,6 +101,9 @@ const DietPlans: React.FC = () => {
     setPdfLoading(planId);
     try {
       const base64PDF = await apiService.generatePDF(planId);
+      
+      // Track PDF export
+      trackDietPlanExport(planId, 'PDF');
       
       // Convert base64 to blob and download
       const binaryString = window.atob(base64PDF);
@@ -119,6 +133,9 @@ const DietPlans: React.FC = () => {
     setCsvLoading(planId);
     try {
       const csvContent = await apiService.generateCSV(planId);
+      
+      // Track CSV export
+      trackDietPlanExport(planId, 'CSV');
       
       // Create a blob and download
       const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -187,7 +204,10 @@ const DietPlans: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/create-plan')}
+          onClick={() => {
+            trackCreatePlanClick();
+            navigate('/create-plan');
+          }}
           sx={{
             bgcolor: '#4ca6c9',
             '&:hover': { bgcolor: '#3c89af' },
@@ -219,7 +239,10 @@ const DietPlans: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => navigate('/create-plan')}
+            onClick={() => {
+              trackCreatePlanClick();
+              navigate('/create-plan');
+            }}
             sx={{
               bgcolor: '#4ca6c9',
               '&:hover': { bgcolor: '#3c89af' },

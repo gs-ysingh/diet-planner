@@ -15,6 +15,7 @@ import {
 import { AccountCircle, Restaurant, ExitToApp } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { trackAuth } from '../utils/analytics';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -31,6 +32,7 @@ const Header: React.FC = () => {
   };
 
   const handleLogout = () => {
+    trackAuth('logout');
     logout();
     navigate('/');
     handleClose();

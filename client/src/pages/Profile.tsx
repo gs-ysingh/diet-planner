@@ -16,6 +16,8 @@ import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { Gender, Goal, ActivityLevel } from '../types';
+import { trackProfileUpdate, trackFormSubmission } from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const validationSchema = yup.object({
   name: yup.string().required('Name is required'),
@@ -35,6 +37,9 @@ const Profile: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+
+  // Track engagement time on Profile page
+  useEngagementTracking('Profile');
 
   useEffect(() => {
     if (user) {
@@ -74,9 +79,16 @@ const Profile: React.FC = () => {
         };
 
         await updateUser(updateData);
+        // Track profile update
+        const updatedFields = Object.keys(updateData).filter(key => 
+          updateData[key as keyof typeof updateData] !== undefined
+        ).join(', ');
+        trackProfileUpdate(updatedFields);
+        trackFormSubmission('Profile Update', true);
         setSuccess('Profile updated successfully!');
       } catch (err: any) {
         setError(err.message || 'Failed to update profile');
+        trackFormSubmission('Profile Update', false);
       } finally {
         setLoading(false);
       }

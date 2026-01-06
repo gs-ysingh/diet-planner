@@ -26,12 +26,16 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Track engagement time on Landing page
+  useEngagementTracking('Landing');
 
   const features = [
     {

@@ -17,6 +17,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { DietPlan } from '../types';
+import { trackCreatePlanClick } from '../utils/analytics';
+import { useEngagementTracking } from '../hooks/useAnalytics';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +26,9 @@ const Dashboard: React.FC = () => {
   const [activePlan, setActivePlan] = useState<DietPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+
+  // Track engagement time on Dashboard
+  useEngagementTracking('Dashboard');
 
   useEffect(() => {
     const fetchActivePlan = async () => {
@@ -149,7 +154,10 @@ const Dashboard: React.FC = () => {
             variant="contained"
             size="large"
             startIcon={<Add />}
-            onClick={() => navigate('/create-plan')}
+            onClick={() => {
+              trackCreatePlanClick();
+              navigate('/create-plan');
+            }}
             sx={{
               bgcolor: '#4ca6c9',
               '&:hover': { bgcolor: '#3c89af' },
@@ -250,7 +258,10 @@ const Dashboard: React.FC = () => {
                       fullWidth
                       variant="outlined"
                       startIcon={<Add />}
-                      onClick={() => navigate('/create-plan')}
+                      onClick={() => {
+                        trackCreatePlanClick();
+                        navigate('/create-plan');
+                      }}
                       sx={{ py: 1.5 }}
                     >
                       Create New Plan
