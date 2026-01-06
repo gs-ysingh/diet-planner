@@ -20,8 +20,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "REACT_APP_GRAPHQL_ENDPOINT": "@react_app_graphql_endpoint"
-  }
+  ]
 }
