@@ -180,6 +180,34 @@ export const typeDefs = gql`
     servings: Int
   }
 
+  enum FeedbackCategory {
+    GENERAL
+    TECHNICAL
+    FEEDBACK
+    FEATURE_REQUEST
+    BUG_REPORT
+    OTHER
+  }
+
+  type Feedback {
+    id: ID!
+    userId: String
+    name: String!
+    email: String!
+    subject: String!
+    category: FeedbackCategory!
+    message: String!
+    createdAt: DateTime!
+  }
+
+  input FeedbackInput {
+    name: String!
+    email: String!
+    subject: String!
+    category: FeedbackCategory!
+    message: String!
+  }
+
   type Query {
     me: User
     getDietPlan(id: ID!): DietPlan
@@ -205,5 +233,6 @@ export const typeDefs = gql`
     regenerateMeal(mealId: ID!, customRequirements: String): Meal!
     generatePDF(dietPlanId: ID!): String! # Returns base64 encoded PDF
     generateCSV(dietPlanId: ID!): String! # Returns CSV content
+    submitFeedback(input: FeedbackInput!): Feedback!
   }
 `;

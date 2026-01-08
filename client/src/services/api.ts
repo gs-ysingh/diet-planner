@@ -572,6 +572,27 @@ class ApiService {
     const data = await this.makeRequest(query, { input: saveInput });
     return data.saveDietPlan;
   }
+
+  // Submit feedback
+  async submitFeedback(input: {
+    name: string;
+    email: string;
+    subject: string;
+    category: string;
+    message: string;
+  }): Promise<{ id: string; createdAt: string }> {
+    const query = `
+      mutation SubmitFeedback($input: FeedbackInput!) {
+        submitFeedback(input: $input) {
+          id
+          createdAt
+        }
+      }
+    `;
+
+    const data = await this.makeRequest(query, { input });
+    return data.submitFeedback;
+  }
 }
 
 export const apiService = new ApiService();

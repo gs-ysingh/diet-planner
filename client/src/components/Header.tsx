@@ -136,6 +136,23 @@ const Header: React.FC = () => {
               >
                 Create Plan
               </Button>
+              <Button
+                onClick={() => navigate('/contact')}
+                sx={{
+                  color: isActive('/contact') ? '#4ca6c9' : '#757575',
+                  fontWeight: isActive('/contact') ? 600 : 500,
+                  backgroundColor: isActive('/contact') ? 'rgba(76, 166, 201, 0.08)' : 'transparent',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  textTransform: 'none',
+                  px: 2,
+                  borderRadius: 2,
+                }}
+              >
+                Contact
+              </Button>
 
               <Tooltip title="Account">
                 <IconButton
@@ -189,6 +206,22 @@ const Header: React.FC = () => {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button
+                onClick={() => navigate('/contact')}
+                sx={{ 
+                  color: '#757575',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                    color: '#4ca6c9',
+                  },
+                  px: 2.5,
+                  borderRadius: 2,
+                }}
+              >
+                Contact
+              </Button>
               <Button
                 onClick={() => navigate('/login')}
                 sx={{ 

@@ -75,6 +75,19 @@ model Meal {
   @@map("meals")
 }
 
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String?
+  name        String
+  email       String
+  subject     String
+  category    FeedbackCategory
+  message     String
+  createdAt   DateTime @default(now())
+  
+  @@map("feedback")
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -112,4 +125,13 @@ enum MealType {
   LUNCH
   DINNER
   SNACK
+}
+
+enum FeedbackCategory {
+  GENERAL
+  TECHNICAL
+  FEEDBACK
+  FEATURE_REQUEST
+  BUG_REPORT
+  OTHER
 }

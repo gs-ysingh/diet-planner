@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import DietPlans from './pages/DietPlans';
 import CreatePlan from './pages/CreatePlan';
 import Landing from './pages/Landing';
+import Contact from './pages/Contact';
 import { dietPlannerTheme } from './theme/dietPlannerTheme';
 import { initGA } from './utils/analytics';
 import { usePageTracking } from './hooks/useAnalytics';
@@ -77,6 +78,7 @@ const AppContent: React.FC = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/contact" element={<Contact />} />
         <Route
           path="/dashboard"
           element={

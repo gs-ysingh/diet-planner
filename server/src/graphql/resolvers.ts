@@ -803,6 +803,46 @@ export const resolvers = {
         console.error('Error generating CSV:', error);
         throw new Error('Failed to generate CSV. Please try again.');
       }
+    },
+    submitFeedback: async (_: any, { input }: { input: any }, context: Context) => {
+      try {
+        // Sanitize inputs
+        const sanitizedInput = {
+          userId: context.user?.id || null,
+          name: sanitizeInput(input.name),
+          email: sanitizeInput(input.email),
+          subject: sanitizeInput(input.subject),
+          category: input.category,
+          message: sanitizeInput(input.message),
+        };
+
+        // Validate email format
+        if (!validateEmail(sanitizedInput.email)) {
+          throw new UserInputError('Invalid email format');
+        }
+
+        // Validate message length
+        if (sanitizedInput.message.length < 10) {
+          throw new UserInputError('Message must be at least 10 characters long');
+        }
+
+        if (sanitizedInput.message.length > 5000) {
+          throw new UserInputError('Message is too long (maximum 5000 characters)');
+        }
+
+        // Create feedback entry
+        const feedback = await prisma.feedback.create({
+          data: sanitizedInput,
+        });
+
+        return feedback;
+      } catch (error) {
+        if (error instanceof UserInputError || error instanceof AuthenticationError) {
+          throw error;
+        }
+        console.error('Error submitting feedback:', error);
+        throw new Error('Failed to submit feedback. Please try again.');
+      }
     }
   }
 };
