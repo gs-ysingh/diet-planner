@@ -534,13 +534,19 @@ const CreatePlan: React.FC = () => {
                     {streamProgress.completedDays.map((day: string, index: number) => {
                       const dayMeals = (streamProgress.allMeals || []).filter((meal: any) => meal.day === day);
                       
+                      // Sort meals in the correct order: BREAKFAST, LUNCH, SNACK, DINNER
+                      const mealOrder = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
+                      const sortedDayMeals = dayMeals.sort((a: any, b: any) => 
+                        mealOrder.indexOf(a.mealType) - mealOrder.indexOf(b.mealType)
+                      );
+                      
                       return (
                         <Box key={day} sx={{ mb: 3, pb: 2, borderBottom: index < streamProgress.completedDays!.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
                           <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
                             {day}
                           </Typography>
                           <Grid container spacing={1}>
-                            {dayMeals.map((meal: any, mealIdx: number) => (
+                            {sortedDayMeals.map((meal: any, mealIdx: number) => (
                               <Grid item xs={12} sm={6} key={mealIdx}>
                                 <Box sx={{ 
                                   p: 1.5, 

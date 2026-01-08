@@ -180,8 +180,8 @@ const DietPlans: React.FC = () => {
   const mealTypeOrder: MealType[] = [
     MealType.BREAKFAST,
     MealType.LUNCH,
-    MealType.DINNER,
     MealType.SNACK,
+    MealType.DINNER,
   ];
 
   if (loading) {
@@ -325,56 +325,317 @@ const DietPlans: React.FC = () => {
                     </Typography>
                   </Box>
 
-                  {/* Week Overview */}
+                  {/* Week Overview - Modern Accordion */}
                   <Box sx={{ mb: 2 }}>
-                    {daysOfWeek.map((day) => {
+                    {daysOfWeek.map((day, index) => {
                       const dayMeals = getMealsByDay(plan, day);
                       if (dayMeals.length === 0) return null;
 
+                      const totalCalories = dayMeals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+                      const totalProtein = dayMeals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
+
                       return (
-                        <Accordion key={day} sx={{ mb: 1 }}>
+                        <Accordion 
+                          key={day}
+                          sx={{ 
+                            mb: 2,
+                            borderRadius: '12px !important',
+                            border: '1px solid #e0e0e0',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                            overflow: 'hidden',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              transform: 'translateY(-2px)',
+                            },
+                            '&:before': {
+                              display: 'none',
+                            },
+                            '&.Mui-expanded': {
+                              margin: '0 0 16px 0',
+                            },
+                          }}
+                        >
                           <AccordionSummary
-                            expandIcon={<ExpandMore />}
-                            sx={{ bgcolor: '#f5f5f5' }}
+                            expandIcon={
+                              <ExpandMore 
+                                sx={{ 
+                                  color: '#4ca6c9',
+                                  transition: 'transform 0.3s ease',
+                                }}
+                              />
+                            }
+                            sx={{ 
+                              background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
+                              minHeight: '72px',
+                              px: 3,
+                              py: 1.5,
+                              '&:hover': {
+                                background: 'linear-gradient(135deg, #f0f8ff 0%, #ffffff 100%)',
+                              },
+                              '& .MuiAccordionSummary-content': {
+                                my: 1.5,
+                                alignItems: 'center',
+                              },
+                            }}
                           >
-                            <Typography sx={{ fontWeight: 500 }}>
-                              {day.charAt(0) + day.slice(1).toLowerCase()}
-                            </Typography>
-                            <Typography sx={{ ml: 2, color: 'text.secondary' }}>
-                              {dayMeals.length} meals
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 2 }}>
+                              {/* Day number badge */}
+                              <Box
+                                sx={{
+                                  minWidth: 40,
+                                  height: 40,
+                                  borderRadius: '10px',
+                                  background: 'linear-gradient(135deg, #4ca6c9 0%, #3c89af 100%)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  fontSize: '0.875rem',
+                                  boxShadow: '0 2px 6px rgba(76, 166, 201, 0.3)',
+                                }}
+                              >
+                                {index + 1}
+                              </Box>
+                              
+                              {/* Day name */}
+                              <Box sx={{ flex: 1 }}>
+                                <Typography 
+                                  sx={{ 
+                                    fontWeight: 600,
+                                    fontSize: '1.125rem',
+                                    color: '#212121',
+                                    mb: 0.5,
+                                  }}
+                                >
+                                  {day.charAt(0) + day.slice(1).toLowerCase()}
+                                </Typography>
+                                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                                  <Chip
+                                    size="small"
+                                    label={`${dayMeals.length} meals`}
+                                    sx={{
+                                      bgcolor: '#e3f2fd',
+                                      color: '#1976d2',
+                                      fontWeight: 500,
+                                      fontSize: '0.75rem',
+                                      height: 24,
+                                    }}
+                                  />
+                                  <Chip
+                                    size="small"
+                                    icon={<LocalFireDepartment sx={{ fontSize: 14 }} />}
+                                    label={`${totalCalories} cal`}
+                                    sx={{
+                                      bgcolor: '#fff3e0',
+                                      color: '#e65100',
+                                      fontWeight: 500,
+                                      fontSize: '0.75rem',
+                                      height: 24,
+                                    }}
+                                  />
+                                  <Chip
+                                    size="small"
+                                    label={`${totalProtein.toFixed(0)}g protein`}
+                                    sx={{
+                                      bgcolor: '#f3e5f5',
+                                      color: '#6a1b9a',
+                                      fontWeight: 500,
+                                      fontSize: '0.75rem',
+                                      height: 24,
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+                            </Box>
                           </AccordionSummary>
-                          <AccordionDetails>
+                          
+                          <AccordionDetails
+                            sx={{
+                              p: 3,
+                              pt: 2,
+                              bgcolor: '#fafafa',
+                            }}
+                          >
                             <Grid container spacing={2}>
                               {mealTypeOrder.map((mealType) => {
                                 const meal = dayMeals.find(m => m.mealType === mealType);
                                 if (!meal) return null;
 
+                                // Define meal type colors and icons
+                                const mealConfig = {
+                                  BREAKFAST: { color: '#ff9800', bgColor: '#fff3e0', emoji: '☀️' },
+                                  LUNCH: { color: '#4caf50', bgColor: '#e8f5e9', emoji: '🍽️' },
+                                  DINNER: { color: '#673ab7', bgColor: '#f3e5f5', emoji: '🌙' },
+                                  SNACK: { color: '#ff5722', bgColor: '#fbe9e7', emoji: '🍎' },
+                                };
+
+                                const config = mealConfig[mealType as keyof typeof mealConfig];
+
                                 return (
                                   <Grid item xs={12} sm={6} md={3} key={mealType}>
-                                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                                      <Typography variant="subtitle2" color="primary" sx={{ mb: 1 }}>
-                                        {mealType}
-                                      </Typography>
-                                      <Typography variant="h6" sx={{ mb: 1, fontSize: '1rem' }}>
-                                        {meal.name}
-                                      </Typography>
-                                      {meal.calories && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                                          <LocalFireDepartment sx={{ fontSize: 16, color: '#ff6f00' }} />
-                                          <Typography variant="caption">
-                                            {meal.calories} cal
+                                    <Card 
+                                      sx={{ 
+                                        height: '100%',
+                                        borderRadius: 3,
+                                        border: 'none',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                                        transition: 'all 0.3s ease',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                          boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+                                          transform: 'translateY(-4px)',
+                                        },
+                                      }}
+                                    >
+                                      {/* Meal type header */}
+                                      <Box
+                                        sx={{
+                                          bgcolor: config.bgColor,
+                                          py: 1.5,
+                                          px: 2,
+                                          borderBottom: `2px solid ${config.color}`,
+                                        }}
+                                      >
+                                        <Typography 
+                                          variant="subtitle2" 
+                                          sx={{ 
+                                            color: config.color,
+                                            fontWeight: 700,
+                                            fontSize: '0.875rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                          }}
+                                        >
+                                          <span>{config.emoji}</span>
+                                          {mealType}
+                                        </Typography>
+                                      </Box>
+                                      
+                                      {/* Meal content */}
+                                      <Box sx={{ p: 2 }}>
+                                        <Typography 
+                                          variant="h6" 
+                                          sx={{ 
+                                            mb: 1.5, 
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            color: '#212121',
+                                            lineHeight: 1.3,
+                                          }}
+                                        >
+                                          {meal.name}
+                                        </Typography>
+                                        
+                                        {meal.description && (
+                                          <Typography 
+                                            variant="caption" 
+                                            sx={{ 
+                                              display: 'block',
+                                              mb: 1.5,
+                                              color: 'text.secondary',
+                                              lineHeight: 1.4,
+                                            }}
+                                          >
+                                            {meal.description.length > 60 
+                                              ? `${meal.description.substring(0, 60)}...` 
+                                              : meal.description}
                                           </Typography>
+                                        )}
+                                        
+                                        {/* Nutrition info */}
+                                        <Box sx={{ 
+                                          display: 'flex', 
+                                          flexDirection: 'column',
+                                          gap: 1,
+                                        }}>
+                                          {meal.calories && (
+                                            <Box sx={{ 
+                                              display: 'flex', 
+                                              alignItems: 'center', 
+                                              gap: 1,
+                                              p: 1,
+                                              bgcolor: '#fff3e0',
+                                              borderRadius: 1.5,
+                                            }}>
+                                              <LocalFireDepartment sx={{ fontSize: 18, color: '#ff6f00' }} />
+                                              <Typography variant="caption" sx={{ fontWeight: 600, color: '#e65100' }}>
+                                                {meal.calories} calories
+                                              </Typography>
+                                            </Box>
+                                          )}
+                                          
+                                          {(meal.prepTime || meal.cookTime) && (
+                                            <Box sx={{ 
+                                              display: 'flex', 
+                                              alignItems: 'center', 
+                                              gap: 1,
+                                              p: 1,
+                                              bgcolor: '#e3f2fd',
+                                              borderRadius: 1.5,
+                                            }}>
+                                              <AccessTime sx={{ fontSize: 18, color: '#1976d2' }} />
+                                              <Typography variant="caption" sx={{ fontWeight: 600, color: '#1565c0' }}>
+                                                {(meal.prepTime || 0) + (meal.cookTime || 0)} minutes
+                                              </Typography>
+                                            </Box>
+                                          )}
+                                          
+                                          {/* Macros */}
+                                          {(meal.protein || meal.carbs || meal.fat) && (
+                                            <Box sx={{ 
+                                              display: 'flex', 
+                                              gap: 1,
+                                              mt: 0.5,
+                                              flexWrap: 'wrap',
+                                            }}>
+                                              {meal.protein && (
+                                                <Chip
+                                                  label={`P: ${meal.protein}g`}
+                                                  size="small"
+                                                  sx={{
+                                                    fontSize: '0.7rem',
+                                                    height: 22,
+                                                    bgcolor: '#f3e5f5',
+                                                    color: '#6a1b9a',
+                                                    fontWeight: 600,
+                                                  }}
+                                                />
+                                              )}
+                                              {meal.carbs && (
+                                                <Chip
+                                                  label={`C: ${meal.carbs}g`}
+                                                  size="small"
+                                                  sx={{
+                                                    fontSize: '0.7rem',
+                                                    height: 22,
+                                                    bgcolor: '#e8f5e9',
+                                                    color: '#2e7d32',
+                                                    fontWeight: 600,
+                                                  }}
+                                                />
+                                              )}
+                                              {meal.fat && (
+                                                <Chip
+                                                  label={`F: ${meal.fat}g`}
+                                                  size="small"
+                                                  sx={{
+                                                    fontSize: '0.7rem',
+                                                    height: 22,
+                                                    bgcolor: '#fce4ec',
+                                                    color: '#c2185b',
+                                                    fontWeight: 600,
+                                                  }}
+                                                />
+                                              )}
+                                            </Box>
+                                          )}
                                         </Box>
-                                      )}
-                                      {(meal.prepTime || meal.cookTime) && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                          <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                          <Typography variant="caption" color="text.secondary">
-                                            {(meal.prepTime || 0) + (meal.cookTime || 0)} min
-                                          </Typography>
-                                        </Box>
-                                      )}
+                                      </Box>
                                     </Card>
                                   </Grid>
                                 );

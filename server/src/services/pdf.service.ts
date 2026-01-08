@@ -67,7 +67,7 @@ export class PDFService {
 
   private generateHTMLContent(dietPlan: DietPlan): string {
     const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+    const mealTypes = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
 
     const mealsByDay = daysOfWeek.map(day => ({
       day,

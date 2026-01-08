@@ -59,7 +59,11 @@ const Dashboard: React.FC = () => {
       )
     );
     
-    return uniqueMeals;
+    // Sort meals in the correct order: BREAKFAST, LUNCH, SNACK, DINNER
+    const mealOrder = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
+    return uniqueMeals.sort((a, b) => 
+      mealOrder.indexOf(a.mealType) - mealOrder.indexOf(b.mealType)
+    );
   };
 
   const todaysMeals = getTodaysMeals();

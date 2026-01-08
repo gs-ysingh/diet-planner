@@ -93,7 +93,7 @@ export class ModernAIService {
       
       // Create structured prompt template
       const dietPlanPrompt = PromptTemplate.fromTemplate(`
-        Create a 7-day diet plan with exactly 28 meals (4 meals per day: BREAKFAST, LUNCH, DINNER, SNACK).
+        Create a 7-day diet plan with exactly 28 meals (4 meals per day: BREAKFAST, LUNCH, SNACK, DINNER).
 
         User: Age {age}, Weight {weight}kg, Height {height}cm, Gender {gender}, Nationality {nationality}
         Goal: {goal}, Activity: {activityLevel}
@@ -101,7 +101,7 @@ export class ModernAIService {
         Requirements: {customRequirements}
 
         Requirements:
-        1. Exactly 28 meals: 7 days × 4 meals (BREAKFAST, LUNCH, DINNER, SNACK)
+        1. Exactly 28 meals: 7 days × 4 meals (BREAKFAST, LUNCH, SNACK, DINNER)
         2. CRITICAL: Each day must have DIFFERENT meals - NO DUPLICATES across days
         3. Create VARIETY: Different ingredients, cooking methods, and flavors for each day
         4. Consider user profile and preferences
@@ -109,7 +109,7 @@ export class ModernAIService {
         6. Proper nutritional values
 
         Days: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
-        Meal types: BREAKFAST, LUNCH, DINNER, SNACK
+        Meal types: BREAKFAST, LUNCH, SNACK, DINNER
 
         ENSURE VARIETY ACROSS THE WEEK:
         - Monday's breakfast should be different from Tuesday's, Wednesday's, etc.
@@ -439,7 +439,7 @@ export class ModernAIService {
       console.log('🔄 Starting streaming diet plan generation...');
       
       const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-      const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+      const mealTypes = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
       const allMeals: any[] = [];
 
       // Send initial event
@@ -472,7 +472,7 @@ export class ModernAIService {
 
         // Generate ALL 4 meals for the day in a SINGLE request (much faster!)
         const dayPrompt = PromptTemplate.fromTemplate(`
-          Create 4 meals for {day}: BREAKFAST, LUNCH, DINNER, and SNACK.
+          Create 4 meals for {day}: BREAKFAST, LUNCH, SNACK, and DINNER.
 
           User: Age {age}, {weight}kg, {height}cm, {gender}, {nationality}
           Goal: {goal}, Activity: {activityLevel}
@@ -604,7 +604,7 @@ export class ModernAIService {
   private async generateDietPlanInChunks(user: User, input: DietPlanInput) {
     console.log('📦 Generating diet plan in chunks (2 days at a time)...');
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+    const mealTypes = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
     const allMeals: any[] = [];
 
     // Process 2 days at a time

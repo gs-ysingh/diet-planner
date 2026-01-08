@@ -72,7 +72,7 @@ export class CSVService {
     
     // Sort meals by day and meal type
     const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    const mealTypeOrder = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+    const mealTypeOrder = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
     
     const sortedMeals = [...dietPlan.meals].sort((a, b) => {
       const dayCompare = daysOrder.indexOf(a.day) - daysOrder.indexOf(b.day);

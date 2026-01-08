@@ -32,7 +32,7 @@ const generateToken = (userId: string, email: string): string => {
 // Fallback diet plan when OpenAI fails
 const createFallbackDietPlan = (user: any, input: any) => {
   const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-  const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+  const mealTypes = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
   
   const fallbackMeals = {
     BREAKFAST: [
