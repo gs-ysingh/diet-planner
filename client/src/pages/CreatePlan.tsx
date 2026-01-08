@@ -61,6 +61,122 @@ const mealComplexityOptions = [
   'Mixed complexity'
 ];
 
+const locationOptions = [
+  'Indian',
+  'Chinese',
+  'Japanese',
+  'Thai',
+  'Korean',
+  'Vietnamese',
+  'Malaysian',
+  'Indonesian',
+  'Filipino',
+  'Italian',
+  'French',
+  'Spanish',
+  'Greek',
+  'Turkish',
+  'Mexican',
+  'Brazilian',
+  'Argentinian',
+  'Peruvian',
+  'American',
+  'British',
+  'German',
+  'Portuguese',
+  'Lebanese',
+  'Moroccan',
+  'Ethiopian',
+  'Nigerian',
+  'South African',
+  'Caribbean',
+  'Middle Eastern',
+  'Mediterranean',
+  'Scandinavian',
+  'Russian',
+  'Polish',
+  'Ukrainian',
+  'Australian',
+  'New Zealand',
+  'Pakistani',
+  'Bangladeshi',
+  'Sri Lankan',
+  'Nepalese',
+  'Tibetan',
+  'Burmese',
+  'Singaporean',
+  'Cambodian',
+  'Laotian',
+  'Mongolian',
+  'Persian/Iranian',
+  'Afghan',
+  'Arabian',
+  'Egyptian',
+  'Tunisian',
+  'Algerian',
+  'Kenyan',
+  'Jamaican',
+  'Cuban',
+  'Puerto Rican',
+  'Dominican',
+  'Colombian',
+  'Venezuelan',
+  'Chilean',
+  'Ecuadorian',
+  'Bolivian',
+  'Uruguayan',
+  'Costa Rican',
+  'Guatemalan',
+  'Salvadoran',
+  'Honduran',
+  'Nicaraguan',
+  'Panamanian',
+  'Belgian',
+  'Dutch',
+  'Swiss',
+  'Austrian',
+  'Hungarian',
+  'Czech',
+  'Romanian',
+  'Bulgarian',
+  'Croatian',
+  'Serbian',
+  'Bosnian',
+  'Albanian',
+  'Macedonian',
+  'Slovenian',
+  'Slovak',
+  'Lithuanian',
+  'Latvian',
+  'Estonian',
+  'Finnish',
+  'Swedish',
+  'Norwegian',
+  'Danish',
+  'Icelandic',
+  'Irish',
+  'Scottish',
+  'Welsh',
+  'Canadian',
+  'Cajun/Creole',
+  'Soul Food',
+  'Tex-Mex',
+  'Global/Fusion'
+];
+
+const mealTypeOptions = [
+  'Traditional',
+  'Modern Fusion',
+  'Plant-Based',
+  'Comfort Food',
+  'Gourmet',
+  'Street Food',
+  'Home-Style Cooking',
+  'Quick & Easy',
+  'Meal Prep Friendly',
+  'Restaurant-Style'
+];
+
 const CreatePlan: React.FC = () => {
   const navigate = useNavigate();
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
@@ -69,6 +185,8 @@ const CreatePlan: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [activeStep, setActiveStep] = useState(0);
   const [complexity, setComplexity] = useState('');
+  const [location, setLocation] = useState('');
+  const [mealType, setMealType] = useState('');
   
   // Track engagement time on this page
   useEngagementTracking('Create Plan Page');
@@ -152,7 +270,7 @@ const CreatePlan: React.FC = () => {
         name: data.name,
         description: data.description || '',
         weekStart: new Date(data.weekStart).toISOString(),
-        preferences: [...selectedPreferences, complexity].filter(Boolean),
+        preferences: [...selectedPreferences, complexity, location && `Location: ${location}`, mealType && `Meal Type: ${mealType}`].filter(Boolean),
         customRequirements: data.customRequirements || '',
       };
 
@@ -394,6 +512,50 @@ const CreatePlan: React.FC = () => {
                 })}
               </Box>
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Location/Cuisine Region</InputLabel>
+                <Select
+                  value={location}
+                  label="Location/Cuisine Region"
+                  onChange={(e) => {
+                    setLocation(e.target.value);
+                    trackButtonClick(`Location: ${e.target.value}`, 'Create Plan - Step 2');
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {locationOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Meal Style</InputLabel>
+                <Select
+                  value={mealType}
+                  label="Meal Style"
+                  onChange={(e) => {
+                    setMealType(e.target.value);
+                    trackButtonClick(`Meal Style: ${e.target.value}`, 'Create Plan - Step 2');
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {mealTypeOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Meal Complexity</InputLabel>
@@ -402,6 +564,9 @@ const CreatePlan: React.FC = () => {
                   label="Meal Complexity"
                   onChange={(e) => setComplexity(e.target.value)}
                 >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
                   {mealComplexityOptions.map((option) => (
                     <MenuItem key={option} value={option}>
                       {option}
@@ -473,6 +638,16 @@ const CreatePlan: React.FC = () => {
                   {selectedPreferences.length > 0 && (
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       <strong>Preferences:</strong> {selectedPreferences.join(', ')}
+                    </Typography>
+                  )}
+                  {location && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Location/Cuisine:</strong> {location}
+                    </Typography>
+                  )}
+                  {mealType && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Meal Style:</strong> {mealType}
                     </Typography>
                   )}
                   {complexity && (
