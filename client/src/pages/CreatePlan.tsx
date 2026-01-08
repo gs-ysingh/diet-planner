@@ -138,7 +138,11 @@ const CreatePlan: React.FC = () => {
     setError('');
     setSuccess('');
     setIsGenerating(true);
-    setStreamProgress({});
+    setStreamProgress({ 
+      message: 'Initializing AI generation...',
+      completedDays: [],
+      allMeals: []
+    });
 
     // Track that plan creation has started
     trackCreatePlanStart(data.name);
@@ -152,82 +156,98 @@ const CreatePlan: React.FC = () => {
         customRequirements: data.customRequirements || '',
       };
 
-      const completedDays: any[] = [];
-      let allMeals: any[] = [];
+      // Use streaming API for progressive meal generation
+      trackPlanGenerationProgress('start', undefined);
+      
+      const completedMeals: any[] = [];
+      const completedDays: string[] = [];
 
-      // Use streaming API
       await apiService.generateDietPlanStream(planInput, (event) => {
         console.log('Stream event:', event);
 
-        switch (event.type) {
-          case 'start':
-            setStreamProgress({
-              totalDays: event.data.totalDays,
-              message: 'Starting diet plan generation...'
+        if (event.type === 'start') {
+          setStreamProgress({
+            message: 'Starting diet plan generation...',
+            totalDays: event.data.totalDays,
+            dayIndex: 0,
+            completedDays: [],
+            allMeals: []
+          });
+          trackPlanGenerationProgress('start', undefined);
+        }
+
+        if (event.type === 'progress') {
+          setStreamProgress(prev => ({
+            ...prev,
+            currentDay: event.data.day,
+            dayIndex: event.data.dayIndex,
+            totalDays: event.data.totalDays,
+            message: event.data.message || `Generating meals for ${event.data.day}...`,
+          }));
+          trackPlanGenerationProgress('day_start', event.data.day);
+        }
+
+        if (event.type === 'meal_streaming') {
+          setStreamProgress(prev => ({
+            ...prev,
+            currentDay: event.data.day,
+            message: event.data.message || `Generating meals for ${event.data.day}...`,
+          }));
+        }
+
+        if (event.type === 'day_complete') {
+          const newMeals = event.data.meals;
+          completedMeals.push(...newMeals);
+          completedDays.push(event.data.day);
+
+          setStreamProgress(prev => ({
+            ...prev,
+            completedDays: [...completedDays],
+            allMeals: [...completedMeals],
+            message: `✓ ${event.data.day} complete! (${completedDays.length}/${event.data.totalDays} days)`,
+          }));
+          trackPlanGenerationProgress('day_complete', event.data.day);
+        }
+
+        if (event.type === 'plan_complete') {
+          const allMeals = event.data.meals;
+          
+          setStreamProgress(prev => ({
+            ...prev,
+            message: 'Saving your diet plan...',
+            allMeals: allMeals,
+          }));
+
+          // Save the generated plan to database
+          trackPlanGenerationProgress('saving', undefined);
+          apiService.saveDietPlan(planInput, allMeals)
+            .then(result => {
+              if (result.success) {
+                trackCreatePlanSuccess(data.name, planInput.preferences);
+                trackPlanGenerationProgress('plan_complete', undefined);
+                
+                setSuccess('Diet plan generated and saved successfully!');
+                setTimeout(() => {
+                  navigate('/diet-plans');
+                }, 2000);
+              } else {
+                throw new Error(result.error || 'Failed to save diet plan');
+              }
+            })
+            .catch(saveError => {
+              trackCreatePlanError(saveError.message || 'Failed to save diet plan');
+              setError(saveError.message || 'Failed to save diet plan');
+            })
+            .finally(() => {
+              setIsGenerating(false);
             });
-            // Track generation start
-            trackPlanGenerationProgress('start', undefined);
-            break;
-
-          case 'progress':
-            setStreamProgress(prev => ({
-              ...prev,
-              currentDay: event.data.day,
-              dayIndex: event.data.dayIndex,
-              message: event.data.message
-            }));
-            // Track progress for each day
-            trackPlanGenerationProgress('progress', event.data.day);
-            break;
-
-          case 'day_complete':
-            completedDays.push({
-              day: event.data.day,
-              meals: event.data.meals
-            });
-            setStreamProgress(prev => ({
-              ...prev,
-              completedDays: [...completedDays]
-            }));
-            trackPlanGenerationProgress('day_complete', event.data.day);
-            break;
-
-          case 'plan_complete':
-            allMeals = event.data.meals;
-            setStreamProgress(prev => ({
-              ...prev,
-              allMeals,
-              message: 'Saving diet plan...'
-            }));
-            trackPlanGenerationProgress('plan_complete', undefined);
-            break;
-
-          case 'error':
-            throw new Error(event.data.error);
         }
       });
 
-      // Save the complete plan to database
-      const result = await apiService.saveDietPlan(planInput, allMeals);
-      
-      if (result.success) {
-        // Track successful plan creation
-        trackCreatePlanSuccess(data.name, planInput.preferences);
-        
-        setSuccess('Diet plan generated and saved successfully!');
-        setTimeout(() => {
-          navigate('/diet-plans');
-        }, 2000);
-      } else {
-        // Track error
-        trackCreatePlanError(result.error || 'Failed to save diet plan');
-        setError(result.error || 'Failed to save diet plan');
-      }
     } catch (err: any) {
       // Track error
       trackCreatePlanError(err.message || 'Failed to generate diet plan');
       setError(err.message || 'Failed to generate diet plan');
-    } finally {
       setIsGenerating(false);
     }
   };
@@ -476,39 +496,80 @@ const CreatePlan: React.FC = () => {
                   {streamProgress.message || 'Starting generation...'}
                 </Typography>
                 
-                <Box sx={{ width: '100%', mb: 3 }}>
+                <Box sx={{ width: '100%', mb: 3, textAlign: 'center' }}>
                   <CircularProgress 
                     variant={streamProgress.totalDays ? "determinate" : "indeterminate"}
-                    value={streamProgress.totalDays ? ((streamProgress.dayIndex || 0) / streamProgress.totalDays) * 100 : undefined}
+                    value={streamProgress.totalDays ? (((streamProgress.dayIndex || 0) + 1) / streamProgress.totalDays) * 100 : undefined}
                     size={80}
                     sx={{ mb: 2 }}
                   />
+                  
                   {streamProgress.totalDays && (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="h6" sx={{ mb: 1 }}>
                       Day {(streamProgress.dayIndex || 0) + 1} of {streamProgress.totalDays}
+                      {' '}
+                      ({Math.round((((streamProgress.dayIndex || 0) + 1) / streamProgress.totalDays) * 100)}%)
                     </Typography>
                   )}
+                  
+                  <Typography variant="body1" sx={{ mt: 2 }}>
+                    {streamProgress.message || 'Generating your personalized diet plan...'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {streamProgress.message?.includes('Generating') && !streamProgress.message?.includes('complete') ? (
+                      <>⚡ Streaming from AI... This is faster than before!</>
+                    ) : (
+                      <>Please don't close this page.</>
+                    )}
+                  </Typography>
                 </Box>
 
+                {/* Display completed days */}
                 {streamProgress.completedDays && streamProgress.completedDays.length > 0 && (
-                  <Paper variant="outlined" sx={{ p: 3, textAlign: 'left', maxHeight: 400, overflow: 'auto' }}>
-                    <Typography variant="h6" gutterBottom>
-                      Generated Days:
+                  <Paper variant="outlined" sx={{ p: 3, mt: 3, maxHeight: '400px', overflow: 'auto', textAlign: 'left' }}>
+                    <Typography variant="h6" gutterBottom sx={{ color: 'success.main', display: 'flex', alignItems: 'center' }}>
+                      ✓ Completed Days ({streamProgress.completedDays.length}/{streamProgress.totalDays || 7})
                     </Typography>
-                    {streamProgress.completedDays.map((dayData, index) => (
-                      <Box key={index} sx={{ mb: 2, pb: 2, borderBottom: index < streamProgress.completedDays!.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
-                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                          {dayData.day}
-                        </Typography>
-                        <Box sx={{ pl: 2 }}>
-                          {dayData.meals.map((meal: any, mealIndex: number) => (
-                            <Typography key={mealIndex} variant="body2" sx={{ mb: 0.5 }}>
-                              • {meal.mealType}: {meal.name}
-                            </Typography>
-                          ))}
+                    
+                    {streamProgress.completedDays.map((day: string, index: number) => {
+                      const dayMeals = (streamProgress.allMeals || []).filter((meal: any) => meal.day === day);
+                      
+                      return (
+                        <Box key={day} sx={{ mb: 3, pb: 2, borderBottom: index < streamProgress.completedDays!.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
+                            {day}
+                          </Typography>
+                          <Grid container spacing={1}>
+                            {dayMeals.map((meal: any, mealIdx: number) => (
+                              <Grid item xs={12} sm={6} key={mealIdx}>
+                                <Box sx={{ 
+                                  p: 1.5, 
+                                  bgcolor: 'grey.50', 
+                                  borderRadius: 1,
+                                  border: '1px solid',
+                                  borderColor: 'grey.200'
+                                }}>
+                                  <Typography variant="caption" sx={{ 
+                                    color: 'primary.main', 
+                                    fontWeight: 600,
+                                    textTransform: 'uppercase',
+                                    fontSize: '0.7rem'
+                                  }}>
+                                    {meal.mealType}
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5 }}>
+                                    {meal.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                    {meal.calories} cal • {meal.protein}g protein
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            ))}
+                          </Grid>
                         </Box>
-                      </Box>
-                    ))}
+                      );
+                    })}
                   </Paper>
                 )}
               </>

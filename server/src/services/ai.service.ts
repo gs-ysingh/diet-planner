@@ -69,24 +69,27 @@ export class ModernAIService {
       throw new Error('OPENAI_API_KEY environment variable is not set');
     }
 
-    // Initialize ChatOpenAI with latest model and optimized settings
+    // Initialize ChatOpenAI with optimized model for speed and cost
     this.chatModel = new ChatOpenAI({
       apiKey: process.env.OPENAI_API_KEY,
-      model: 'gpt-4o-mini', // Latest cost-effective model
-      temperature: 0.3,
-      maxTokens: 8000, // Increased token limit for full meal plan
-      streaming: false,
+      model: 'gpt-4o', // Faster and more cost-effective than gpt-5
+      temperature: 0.7, // Balanced creativity
+      maxTokens: 2500, // Optimized for 4 meals per request
+      streaming: true, // Enable streaming for faster response
+      timeout: 60000, // 1 minute timeout per request
+      maxRetries: 2, // Retry on timeout
     });
 
     // Initialize JSON output parser
     this.jsonParser = new JsonOutputParser();
 
-    console.log('✅ Modern AI Service initialized with GPT-4o-mini and LangChain');
+    console.log('✅ Modern AI Service initialized with GPT-4o and LangChain');
   }
 
   async generateDietPlan(user: User, input: DietPlanInput) {
     try {
       console.log('🤖 Generating complete diet plan using LangChain...');
+      console.log('⏱️  This may take 2-3 minutes for a complete plan...');
       
       // Create structured prompt template
       const dietPlanPrompt = PromptTemplate.fromTemplate(`
@@ -99,12 +102,20 @@ export class ModernAIService {
 
         Requirements:
         1. Exactly 28 meals: 7 days × 4 meals (BREAKFAST, LUNCH, DINNER, SNACK)
-        2. Consider user profile and preferences
-        3. Realistic, culturally appropriate meals
-        4. Proper nutritional values
+        2. CRITICAL: Each day must have DIFFERENT meals - NO DUPLICATES across days
+        3. Create VARIETY: Different ingredients, cooking methods, and flavors for each day
+        4. Consider user profile and preferences
+        5. Realistic, culturally appropriate meals
+        6. Proper nutritional values
 
         Days: MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
         Meal types: BREAKFAST, LUNCH, DINNER, SNACK
+
+        ENSURE VARIETY ACROSS THE WEEK:
+        - Monday's breakfast should be different from Tuesday's, Wednesday's, etc.
+        - Each day should have a unique set of meals
+        - Vary proteins, carbs, and vegetables throughout the week
+        - Use different cooking methods (grilled, baked, steamed, raw, etc.)
 
         CRITICAL: Respond with ONLY valid JSON. No markdown, no explanations.
         
@@ -138,7 +149,10 @@ export class ModernAIService {
       ]);
 
       // Execute the chain with user data
-      const rawResponse = await chain.invoke({
+      console.log('📡 Sending request to OpenAI...');
+      const startTime = Date.now();
+      const rawResponse = await Promise.race([
+        chain.invoke({
         age: user.age || 'Not specified',
         weight: user.weight || 'Not specified',
         height: user.height || 'Not specified',
@@ -149,12 +163,19 @@ export class ModernAIService {
         userPreferences: user.preferences.join(', ') || 'None',
         inputPreferences: input.preferences.join(', ') || 'None',
         customRequirements: input.customRequirements || 'None',
-      });
+      }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout - generating fallback plan')), 240000)
+        )
+      ]);
+      
+      const elapsedTime = Date.now() - startTime;
+      console.log(`✅ Received response in ${(elapsedTime / 1000).toFixed(2)}s`);
 
       // Parse JSON manually with better error handling
       let result;
       try {
-        const content = rawResponse?.content || rawResponse;
+        const content = (rawResponse as any)?.content || rawResponse;
         if (typeof content === 'string') {
           // Try to extract JSON from markdown code blocks if present
           const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
@@ -194,8 +215,19 @@ export class ModernAIService {
 
       return this.formatDietPlanResponse(validatedResult);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ LangChain AI service error, using fallback:', error);
+      
+      // If it's a timeout error, use streaming approach as fallback
+      if (error?.message?.includes('timeout') || error?.message?.includes('Request timeout')) {
+        console.log('⚠️ Timeout detected - switching to chunk-based generation...');
+        try {
+          return await this.generateDietPlanInChunks(user, input);
+        } catch (chunkError) {
+          console.error('❌ Chunk-based generation also failed:', chunkError);
+        }
+      }
+      
       return this.getDefaultDietPlan();
     }
   }
@@ -239,15 +271,15 @@ export class ModernAIService {
         {formatInstructions}
       `);
 
-      // Create the processing chain
+      // Create the processing chain (without jsonParser since we'll parse manually from stream)
       const chain = RunnableSequence.from([
         mealPrompt,
         this.chatModel,
-        this.jsonParser,
       ]);
 
-      // Execute the chain
-      const result = await chain.invoke({
+      // Execute the chain with streaming
+      let streamedContent = '';
+      const streamResponse = await chain.stream({
         age: user.age || 'Not specified',
         weight: user.weight || 'Not specified',
         height: user.height || 'Not specified',
@@ -264,6 +296,22 @@ export class ModernAIService {
         customRequirements: customRequirements || 'Generate a similar but different meal with variety',
         formatInstructions: 'Respond with valid JSON only, no additional text or formatting.',
       });
+
+      // Collect streamed chunks
+      for await (const chunk of streamResponse) {
+        const content = chunk?.content || '';
+        streamedContent += content;
+      }
+
+      // Parse JSON from streamed content
+      let result;
+      try {
+        const jsonMatch = streamedContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+        const jsonString = jsonMatch ? jsonMatch[1] : streamedContent;
+        result = JSON.parse(jsonString);
+      } catch (parseError: any) {
+        throw new Error(`Failed to parse AI response: ${parseError.message}`);
+      }
 
       // Validate the response with Zod schema
       const validatedResult = SingleMealSchema.parse(result);
@@ -417,84 +465,102 @@ export class ModernAIService {
 
         const dayMeals: any[] = [];
 
-        // Generate each meal type for the day
-        for (const mealType of mealTypes) {
-          const mealPrompt = PromptTemplate.fromTemplate(`
-            Create a single {mealType} meal for {day} in a weekly diet plan.
+        // Build context of previously generated meals to avoid duplicates
+        const previousMealsContext = allMeals.length > 0
+          ? `\nAvoid duplicating: ${allMeals.slice(-4).map(m => m.name).join(', ')}`
+          : '';
 
-            User Profile:
-            - Age: {age}, Weight: {weight}kg, Height: {height}cm
-            - Gender: {gender}, Nationality: {nationality}
-            - Goal: {goal}, Activity: {activityLevel}
-            - Preferences: {userPreferences}, {inputPreferences}
-            - Requirements: {customRequirements}
+        // Generate ALL 4 meals for the day in a SINGLE request (much faster!)
+        const dayPrompt = PromptTemplate.fromTemplate(`
+          Create 4 meals for {day}: BREAKFAST, LUNCH, DINNER, and SNACK.
 
-            Generate a realistic, nutritious {mealType} appropriate for {day}.
-            Consider the user's profile, preferences, and cultural background.
+          User: Age {age}, {weight}kg, {height}cm, {gender}, {nationality}
+          Goal: {goal}, Activity: {activityLevel}
+          Preferences: {userPreferences}, {inputPreferences}
+          Requirements: {customRequirements}
+          {previousMealsContext}
 
-            CRITICAL: Respond with ONLY valid JSON, no markdown.
+          Day {dayNumber} of 7. Create varied, realistic meals.
 
-            {{
-              "name": "Meal name",
-              "description": "Brief description",
-              "calories": 400,
-              "protein": 25,
-              "carbs": 45,
-              "fat": 15,
-              "fiber": 8,
-              "ingredients": ["ingredient1", "ingredient2"],
-              "instructions": "Detailed cooking steps",
-              "prepTime": 15,
-              "cookTime": 30,
-              "servings": 2
-            }}
-          `);
+          JSON format (no markdown):
+          [
+            {{"mealType":"BREAKFAST","name":"...","description":"...","calories":400,"protein":25,"carbs":45,"fat":15,"fiber":8,"ingredients":["..."],"instructions":"...","prepTime":10,"cookTime":15,"servings":1}},
+            {{"mealType":"LUNCH","name":"...","description":"...","calories":500,"protein":35,"carbs":50,"fat":20,"fiber":10,"ingredients":["..."],"instructions":"...","prepTime":15,"cookTime":20,"servings":1}},
+            {{"mealType":"DINNER","name":"...","description":"...","calories":550,"protein":40,"carbs":45,"fat":22,"fiber":8,"ingredients":["..."],"instructions":"...","prepTime":20,"cookTime":30,"servings":1}},
+            {{"mealType":"SNACK","name":"...","description":"...","calories":200,"protein":10,"carbs":20,"fat":10,"fiber":5,"ingredients":["..."],"instructions":"...","prepTime":5,"cookTime":0,"servings":1}}
+          ]
+        `);
 
-          const chain = RunnableSequence.from([
-            mealPrompt,
-            this.chatModel,
-          ]);
+        const chain = RunnableSequence.from([dayPrompt, this.chatModel]);
 
-          try {
-            const rawResponse = await chain.invoke({
-              day,
-              mealType,
-              age: user.age || 'Not specified',
-              weight: user.weight || 'Not specified',
-              height: user.height || 'Not specified',
-              gender: user.gender || 'Not specified',
-              nationality: user.nationality || 'Not specified',
-              goal: user.goal || 'General health and wellness',
-              activityLevel: user.activityLevel || 'Moderate',
-              userPreferences: user.preferences.join(', ') || 'None',
-              inputPreferences: input.preferences.join(', ') || 'None',
-              customRequirements: input.customRequirements || 'None',
-            });
-
-            // Parse the response
-            const content = rawResponse?.content || rawResponse;
-            let mealData;
+        try {
+          // Stream all 4 meals for this day in ONE request
+          let streamedContent = '';
+          
+          const streamResponse = await chain.stream({
+            day,
+            dayNumber: dayIndex + 1,
+            age: user.age || 'Not specified',
+            weight: user.weight || 'Not specified',
+            height: user.height || 'Not specified',
+            gender: user.gender || 'Not specified',
+            nationality: user.nationality || 'Not specified',
+            goal: user.goal || 'General health',
+            activityLevel: user.activityLevel || 'Moderate',
+            userPreferences: user.preferences.join(', ') || 'None',
+            inputPreferences: input.preferences.join(', ') || 'None',
+            customRequirements: input.customRequirements || 'None',
+            previousMealsContext,
+          });
+          
+          // Collect streamed chunks
+          for await (const chunk of streamResponse) {
+            const content = chunk?.content || '';
+            streamedContent += content;
             
-            if (typeof content === 'string') {
-              const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-              const jsonString = jsonMatch ? jsonMatch[1] : content;
-              mealData = JSON.parse(jsonString);
-            } else {
-              mealData = content;
+            // Update progress periodically
+            if (streamedContent.length % 100 === 0) {
+              onProgress({
+                type: 'meal_streaming',
+                data: {
+                  day,
+                  progress: streamedContent.length,
+                  message: `Generating meals for ${day}...`
+                }
+              });
             }
+          }
 
-            const meal = {
-              day,
-              mealType,
-              ...this.formatMealResponse(mealData)
-            };
+          // Parse the streamed response (array of 4 meals)
+          let mealsArray;
+          try {
+            const jsonMatch = streamedContent.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+            const jsonString = jsonMatch ? jsonMatch[1] : streamedContent.trim();
+            mealsArray = JSON.parse(jsonString);
+          } catch (parseError: any) {
+            console.error(`Parse error for ${day}:`, parseError);
+            throw parseError;
+          }
 
-            dayMeals.push(meal);
-            allMeals.push(meal);
+          // Process each meal from the batch
+          if (Array.isArray(mealsArray) && mealsArray.length === 4) {
+            for (const mealData of mealsArray) {
+              const meal = {
+                day,
+                mealType: mealData.mealType,
+                ...this.formatMealResponse(mealData)
+              };
+              dayMeals.push(meal);
+              allMeals.push(meal);
+            }
+          } else {
+            throw new Error(`Expected 4 meals, got ${mealsArray?.length || 0}`);
+          }
 
-          } catch (mealError) {
-            console.error(`Error generating ${mealType} for ${day}:`, mealError);
-            // Use fallback meal
+        } catch (dayError) {
+          console.error(`Error generating meals for ${day}:`, dayError);
+          // Use fallback meals for the entire day
+          for (const mealType of mealTypes) {
             const fallbackMeal = this.getFallbackMeal(day, mealType);
             dayMeals.push(fallbackMeal);
             allMeals.push(fallbackMeal);
@@ -532,6 +598,96 @@ export class ModernAIService {
         data: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
+  }
+
+  // Generate diet plan in smaller chunks to avoid timeout
+  private async generateDietPlanInChunks(user: User, input: DietPlanInput) {
+    console.log('📦 Generating diet plan in chunks (2 days at a time)...');
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+    const allMeals: any[] = [];
+
+    // Process 2 days at a time
+    for (let i = 0; i < days.length; i += 2) {
+      const chunkDays = days.slice(i, i + 2);
+      console.log(`🔄 Processing days ${i + 1}-${Math.min(i + 2, days.length)}...`);
+
+      for (const day of chunkDays) {
+        for (const mealType of mealTypes) {
+          try {
+            const mealPrompt = PromptTemplate.fromTemplate(`
+              Create a {mealType} meal for {day}.
+
+              User: Age {age}, Weight {weight}kg, Height {height}cm, {gender}, {nationality}
+              Goal: {goal}, Activity: {activityLevel}
+              Preferences: {userPreferences}
+
+              CRITICAL: Respond with ONLY valid JSON:
+              {{
+                "name": "Meal name",
+                "description": "Brief description",
+                "calories": 400,
+                "protein": 25,
+                "carbs": 45,
+                "fat": 15,
+                "fiber": 8,
+                "ingredients": ["ingredient1", "ingredient2"],
+                "instructions": "Steps",
+                "prepTime": 15,
+                "cookTime": 30,
+                "servings": 2
+              }}
+            `);
+
+            const chain = RunnableSequence.from([mealPrompt, this.chatModel]);
+            const rawResponse = await Promise.race([
+              chain.invoke({
+                day,
+                mealType,
+                age: user.age || 'Not specified',
+                weight: user.weight || 'Not specified',
+                height: user.height || 'Not specified',
+                gender: user.gender || 'Not specified',
+                nationality: user.nationality || 'Not specified',
+                goal: user.goal || 'General health',
+                activityLevel: user.activityLevel || 'Moderate',
+                userPreferences: user.preferences.join(', ') || 'None',
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Meal timeout')), 30000))
+            ]);
+
+            const content = (rawResponse as any)?.content || rawResponse;
+            let mealData;
+            if (typeof content === 'string') {
+              const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+              const jsonString = jsonMatch ? jsonMatch[1] : content;
+              mealData = JSON.parse(jsonString);
+            } else {
+              mealData = content;
+            }
+
+            allMeals.push({
+              day,
+              mealType,
+              ...this.formatMealResponse(mealData)
+            });
+          } catch (error) {
+            console.error(`Error generating ${mealType} for ${day}, using fallback`);
+            allMeals.push(this.getFallbackMeal(day, mealType));
+          }
+        }
+      }
+
+      // Small delay between chunks to avoid rate limits
+      if (i + 2 < days.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    return {
+      description: `Personalized 7-day diet plan tailored to your goals`,
+      meals: allMeals
+    };
   }
 
   private getFallbackMeal(day: string, mealType: string): any {
