@@ -207,6 +207,22 @@ const Header: React.FC = () => {
           ) : (
             <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Button
+                onClick={() => navigate('/create-plan')}
+                sx={{ 
+                  color: '#4ca6c9',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  border: '1px solid #4ca6c9',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(76, 166, 201, 0.08)',
+                  },
+                  px: 2.5,
+                  borderRadius: 2,
+                }}
+              >
+                Try It Free
+              </Button>
+              <Button
                 onClick={() => navigate('/contact')}
                 sx={{ 
                   color: '#757575',

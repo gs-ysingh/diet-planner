@@ -16,7 +16,7 @@ import {
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Gender, Goal, ActivityLevel } from '../types';
 import PasswordStrengthIndicator from './ui/PasswordStrengthIndicator';
 import { validatePasswordStrength } from '../utils/passwordSecurity';
@@ -47,6 +47,7 @@ const dietaryOptions = [
 const Register: React.FC = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
@@ -90,7 +91,9 @@ const Register: React.FC = () => {
         // Show success message about email verification
         setError('');
         alert('Registration successful! Please check your email to verify your account.');
-        navigate('/dashboard');
+        // Redirect to previous location or dashboard
+        const from = (location.state as any)?.from || '/dashboard';
+        navigate(from);
       } catch (err: any) {
         setError(err.message || 'Registration failed');
         trackFormSubmission('Register', false);

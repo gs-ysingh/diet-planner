@@ -40,10 +40,13 @@ import {
   trackButtonClick,
 } from '../utils/analytics';
 import { useEngagementTracking } from '../hooks/useAnalytics';
+import { useAuth } from '../contexts/AuthContext';
 
 const DietPlans: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [dietPlans, setDietPlans] = useState<DietPlan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; planId: string | null }>({
@@ -58,14 +61,27 @@ const DietPlans: React.FC = () => {
 
   useEffect(() => {
     fetchDietPlans();
-  }, []);
+  }, [user]);
 
   const fetchDietPlans = async () => {
     try {
-      const plans = await apiService.getAllDietPlans();
-      setDietPlans(plans);
+      if (user) {
+        // Fetch saved plans for authenticated users
+        const plans = await apiService.getAllDietPlans();
+        setDietPlans(plans);
+      } else {
+        // Load current plan from localStorage for unauthenticated users
+        const pending = localStorage.getItem('pendingDietPlan');
+        if (pending) {
+          const { planInput, meals } = JSON.parse(pending);
+          setCurrentPlan({ planInput, meals });
+        }
+      }
     } catch (err: any) {
-      setError('Failed to load diet plans');
+      // Don't show error for unauthenticated users - they just won't see saved plans
+      if (user) {
+        setError('Failed to load diet plans');
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -199,7 +215,7 @@ const DietPlans: React.FC = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" component="h1" sx={{ color: '#212121', fontWeight: 700 }}>
-          My Diet Plans
+          {user ? 'My Diet Plans' : 'Your Diet Plan'}
         </Typography>
         <Button
           variant="contained"
@@ -227,11 +243,177 @@ const DietPlans: React.FC = () => {
         </Alert>
       )}
 
-      {dietPlans.length === 0 ? (
+      {/* Show prompt to sign up for unauthenticated users */}
+      {!user && currentPlan && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Sign up or log in to save your plan permanently and access it across devices!
+          <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => navigate('/register', { state: { from: '/diet-plans' } })}
+              sx={{
+                bgcolor: '#4ca6c9',
+                '&:hover': { bgcolor: '#3c89af' },
+              }}
+            >
+              Sign Up
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => navigate('/login', { state: { from: '/diet-plans' } })}
+            >
+              Log In
+            </Button>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Show current plan for unauthenticated users */}
+      {!user && currentPlan && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h5" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {currentPlan.planInput.name}
+                      <Chip
+                        label="Current Plan"
+                        color="primary"
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
+                    </Typography>
+                    {currentPlan.planInput.description && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {currentPlan.planInput.description}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                  <Chip
+                    icon={<CalendarToday />}
+                    label={`Week starting ${formatDate(currentPlan.planInput.weekStart)}`}
+                    variant="outlined"
+                  />
+                  <Chip
+                    icon={<Restaurant />}
+                    label={`${currentPlan.meals.length} meals`}
+                    variant="outlined"
+                  />
+                </Box>
+
+                {/* Download buttons for unauthenticated users */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<GetApp />}
+                    onClick={() => navigate('/register', { state: { from: '/diet-plans' } })}
+                    size="small"
+                  >
+                    Download PDF
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<GetApp />}
+                    onClick={() => navigate('/register', { state: { from: '/diet-plans' } })}
+                    size="small"
+                  >
+                    Download CSV
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', ml: 1 }}>
+                    (Sign up to download)
+                  </Typography>
+                </Box>
+
+                {/* Display meals by day */}
+                {daysOfWeek.map((day, dayIndex) => {
+                  const dayMeals = currentPlan.meals.filter((m: any) => m.day === day);
+                  if (dayMeals.length === 0) return null;
+
+                  const sortedMeals = dayMeals.sort((a: any, b: any) => 
+                    mealTypeOrder.indexOf(a.mealType) - mealTypeOrder.indexOf(b.mealType)
+                  );
+
+                  return (
+                    <Accordion key={day} defaultExpanded={dayIndex === 0} sx={{ mb: 1 }}>
+                      <AccordionSummary expandIcon={<ExpandMore />}>
+                        <Typography sx={{ fontWeight: 600 }}>{day}</Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Grid container spacing={2}>
+                          {sortedMeals.map((meal: any, index: number) => (
+                            <Grid item xs={12} md={6} key={index}>
+                              <Card variant="outlined">
+                                <CardContent>
+                                  <Chip
+                                    label={meal.mealType}
+                                    size="small"
+                                    sx={{ mb: 1, bgcolor: '#4ca6c9', color: 'white' }}
+                                  />
+                                  <Typography variant="h6" sx={{ mb: 1 }}>
+                                    {meal.name}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                    {meal.description}
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    <Chip
+                                      icon={<LocalFireDepartment />}
+                                      label={`${meal.calories} cal`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                    <Chip
+                                      label={`${meal.protein}g protein`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                    <Chip
+                                      label={`${meal.carbs}g carbs`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                    <Chip
+                                      label={`${meal.fat}g fat`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                    {meal.prepTime && (
+                                      <Chip
+                                        icon={<AccessTime />}
+                                        label={`${meal.prepTime + (meal.cookTime || 0)} min`}
+                                        size="small"
+                                        variant="outlined"
+                                      />
+                                    )}
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </AccordionDetails>
+                    </Accordion>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Show empty state for unauthenticated users without a plan */}
+      {!user && !currentPlan && (
         <Card sx={{ p: 4, textAlign: 'center' }}>
           <Restaurant sx={{ fontSize: 80, color: '#ccc', mb: 2 }} />
           <Typography variant="h5" gutterBottom>
-            No Diet Plans Yet
+            No Diet Plan Yet
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Create your first AI-powered diet plan to get started.
@@ -255,7 +437,38 @@ const DietPlans: React.FC = () => {
             Create Your First Plan
           </Button>
         </Card>
-      ) : (
+      )}
+
+      {/* Show saved plans for authenticated users */}
+      {user && dietPlans.length === 0 ? (
+        <Card sx={{ p: 4, textAlign: 'center' }}>
+          <Restaurant sx={{ fontSize: 80, color: '#ccc', mb: 2 }} />
+          <Typography variant="h5" gutterBottom>
+            No Saved Diet Plans
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Create your first AI-powered diet plan to get started.
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              trackCreatePlanClick();
+              navigate('/create-plan');
+            }}
+            sx={{
+              bgcolor: '#4ca6c9',
+              '&:hover': { bgcolor: '#3c89af' },
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: 'none',
+            }}
+          >
+            Create Your First Plan
+          </Button>
+        </Card>
+      ) : user && (
         <Grid container spacing={3}>
           {dietPlans.map((plan) => (
             <Grid item xs={12} key={plan.id}>
@@ -337,6 +550,7 @@ const DietPlans: React.FC = () => {
                       return (
                         <Accordion 
                           key={day}
+                          defaultExpanded={index === 0}
                           sx={{ 
                             mb: 2,
                             borderRadius: '12px !important',

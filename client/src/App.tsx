@@ -97,19 +97,11 @@ const AppContent: React.FC = () => {
         />
         <Route
           path="/diet-plans"
-          element={
-            <ProtectedRoute>
-              <DietPlans />
-            </ProtectedRoute>
-          }
+          element={<DietPlans />}
         />
         <Route
           path="/create-plan"
-          element={
-            <ProtectedRoute>
-              <CreatePlan />
-            </ProtectedRoute>
-          }
+          element={<CreatePlan />}
         />
       </Routes>
     </Box>

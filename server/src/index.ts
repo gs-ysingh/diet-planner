@@ -100,29 +100,25 @@ const startServer = async () => {
     express.json(),
     async (req, res) => {
       try {
-        // Verify authentication
+        // Optional authentication - allow unauthenticated users to generate plans
         const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-          return res.status(401).json({ error: 'Not authenticated' });
-        }
-
-        const context = await createContext({ req: { headers: req.headers } });
-        if (!context.user) {
-          return res.status(401).json({ error: 'Invalid token' });
+        let user = null;
+        
+        if (token) {
+          // If token is provided, verify it
+          const context = await createContext({ req: { headers: req.headers } });
+          if (context.user) {
+            // Get user from database
+            const { PrismaClient } = await import('@prisma/client');
+            const prismaClient = new PrismaClient();
+            user = await prismaClient.user.findUnique({
+              where: { id: context.user.id }
+            });
+            await prismaClient.$disconnect();
+          }
         }
 
         const { input } = req.body;
-        
-        // Get user from database
-        const { PrismaClient } = await import('@prisma/client');
-        const prismaClient = new PrismaClient();
-        const user = await prismaClient.user.findUnique({
-          where: { id: context.user.id }
-        });
-
-        if (!user) {
-          return res.status(404).json({ error: 'User not found' });
-        }
 
         // Set headers for Server-Sent Events
         res.setHeader('Content-Type', 'text/event-stream');
@@ -145,8 +141,6 @@ const startServer = async () => {
 
         res.write('data: {"type":"complete"}\n\n');
         res.end();
-
-        await prismaClient.$disconnect();
       } catch (error: any) {
         console.error('Streaming error:', error);
         res.write(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`);

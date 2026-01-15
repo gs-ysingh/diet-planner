@@ -13,7 +13,7 @@ import {
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { trackAuth, trackFormSubmission } from '../utils/analytics';
 import { useEngagementTracking } from '../hooks/useAnalytics';
 
@@ -25,6 +25,7 @@ const validationSchema = yup.object({
 const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +45,9 @@ const Login: React.FC = () => {
         await login(values.email, values.password);
         trackAuth('login');
         trackFormSubmission('Login', true);
-        navigate('/dashboard');
+        // Redirect to previous location or dashboard
+        const from = (location.state as any)?.from || '/dashboard';
+        navigate(from);
       } catch (err: any) {
         setError(err.message || 'Login failed');
         trackFormSubmission('Login', false);

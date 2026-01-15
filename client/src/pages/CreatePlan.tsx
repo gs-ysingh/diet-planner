@@ -32,6 +32,7 @@ import {
   trackButtonClick,
 } from '../utils/analytics';
 import { useEngagementTracking } from '../hooks/useAnalytics';
+import { useAuth } from '../contexts/AuthContext';
 
 // Modern Zod validation schema
 const dietPlanSchema = z.object({
@@ -179,6 +180,7 @@ const mealTypeOptions = [
 
 const CreatePlan: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
 
   const [error, setError] = useState<string>('');
@@ -201,6 +203,12 @@ const CreatePlan: React.FC = () => {
     completedDays?: any[];
     allMeals?: any[];
   }>({});
+
+  // State for generated plan (unauthenticated users)
+  const [generatedPlan, setGeneratedPlan] = useState<{
+    planInput: DietPlanInput | null;
+    meals: any[];
+  }>({ planInput: null, meals: [] });
 
   const steps = ['Plan Details', 'Preferences', 'Generate Plan'];
 
@@ -332,33 +340,47 @@ const CreatePlan: React.FC = () => {
           
           setStreamProgress(prev => ({
             ...prev,
-            message: 'Saving your diet plan...',
+            message: user ? 'Saving your diet plan...' : '✓ Plan generated successfully!',
             allMeals: allMeals,
           }));
 
-          // Save the generated plan to database
-          trackPlanGenerationProgress('saving', undefined);
-          apiService.saveDietPlan(planInput, allMeals)
-            .then(result => {
-              if (result.success) {
-                trackCreatePlanSuccess(data.name, planInput.preferences);
-                trackPlanGenerationProgress('plan_complete', undefined);
-                
-                setSuccess('Diet plan generated and saved successfully!');
-                setTimeout(() => {
-                  navigate('/diet-plans');
-                }, 2000);
-              } else {
-                throw new Error(result.error || 'Failed to save diet plan');
-              }
-            })
-            .catch(saveError => {
-              trackCreatePlanError(saveError.message || 'Failed to save diet plan');
-              setError(saveError.message || 'Failed to save diet plan');
-            })
-            .finally(() => {
-              setIsGenerating(false);
-            });
+          // If user is authenticated, save immediately. Otherwise, store in state
+          if (user) {
+            trackPlanGenerationProgress('saving', undefined);
+            apiService.saveDietPlan(planInput, allMeals)
+              .then(result => {
+                if (result.success) {
+                  trackCreatePlanSuccess(data.name, planInput.preferences);
+                  trackPlanGenerationProgress('plan_complete', undefined);
+                  
+                  setSuccess('Diet plan generated and saved successfully!');
+                  setTimeout(() => {
+                    navigate('/diet-plans');
+                  }, 2000);
+                } else {
+                  throw new Error(result.error || 'Failed to save diet plan');
+                }
+              })
+              .catch(saveError => {
+                trackCreatePlanError(saveError.message || 'Failed to save diet plan');
+                setError(saveError.message || 'Failed to save diet plan');
+              })
+              .finally(() => {
+                setIsGenerating(false);
+              });
+          } else {
+            // Store generated plan for unauthenticated users
+            setGeneratedPlan({ planInput, meals: allMeals });
+            localStorage.setItem('pendingDietPlan', JSON.stringify({ planInput, meals: allMeals }));
+            trackCreatePlanSuccess(data.name, planInput.preferences);
+            trackPlanGenerationProgress('plan_complete', undefined);
+            setSuccess('Diet plan generated! Redirecting...');
+            setIsGenerating(false);
+            // Redirect to diet-plans to view the generated plan
+            setTimeout(() => {
+              navigate('/diet-plans');
+            }, 1500);
+          }
         }
       });
 
@@ -406,6 +428,36 @@ const CreatePlan: React.FC = () => {
     trackButtonClick(`Back to Step ${activeStep - 1}`, 'Create Plan Form');
     setActiveStep(prev => Math.max(prev - 1, 0));
   };
+
+  // Check for pending plan on mount and after auth
+  React.useEffect(() => {
+    if (user) {
+      const pending = localStorage.getItem('pendingDietPlan');
+      if (pending) {
+        try {
+          const { planInput, meals } = JSON.parse(pending);
+          setGeneratedPlan({ planInput, meals });
+          // Auto-save the pending plan
+          apiService.saveDietPlan(planInput, meals)
+            .then(result => {
+              if (result.success) {
+                localStorage.removeItem('pendingDietPlan');
+                setSuccess('Your generated plan has been saved!');
+                setTimeout(() => {
+                  navigate('/diet-plans');
+                }, 2000);
+              }
+            })
+            .catch(err => {
+              console.error('Failed to save pending plan:', err);
+            });
+        } catch (err) {
+          console.error('Failed to parse pending plan:', err);
+          localStorage.removeItem('pendingDietPlan');
+        }
+      }
+    }
+  }, [user, navigate]);
 
   const renderStepContent = (step: number) => {
     switch (step) {
@@ -755,6 +807,8 @@ const CreatePlan: React.FC = () => {
                 )}
               </>
             )}
+
+
           </Box>
         );
 
@@ -771,6 +825,7 @@ const CreatePlan: React.FC = () => {
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
           Let our AI create a personalized weekly meal plan tailored to your preferences and goals.
+          {!user && ' No login required to generate!'}
         </Typography>
 
         {error && (
@@ -865,6 +920,8 @@ const CreatePlan: React.FC = () => {
           </Box>
         </Box>
       </Paper>
+
+
     </Container>
   );
 };

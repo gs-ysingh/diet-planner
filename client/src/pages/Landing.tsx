@@ -165,7 +165,7 @@ const Landing: React.FC = () => {
                       variant="contained"
                       size="large"
                       endIcon={<ArrowForward />}
-                      onClick={() => navigate('/register')}
+                      onClick={() => navigate('/create-plan')}
                       sx={{
                         bgcolor: 'white',
                         color: '#4ca6c9',

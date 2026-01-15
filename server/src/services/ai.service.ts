@@ -431,7 +431,7 @@ export class ModernAIService {
 
   // Streaming method to generate diet plan day by day
   async generateDietPlanStream(
-    user: User,
+    user: User | null,
     input: DietPlanInput,
     onProgress: (event: { type: string; data: any }) => void
   ) {
@@ -500,14 +500,14 @@ export class ModernAIService {
           const streamResponse = await chain.stream({
             day,
             dayNumber: dayIndex + 1,
-            age: user.age || 'Not specified',
-            weight: user.weight || 'Not specified',
-            height: user.height || 'Not specified',
-            gender: user.gender || 'Not specified',
-            nationality: user.nationality || 'Not specified',
-            goal: user.goal || 'General health',
-            activityLevel: user.activityLevel || 'Moderate',
-            userPreferences: user.preferences.join(', ') || 'None',
+            age: user?.age || 'Not specified',
+            weight: user?.weight || 'Not specified',
+            height: user?.height || 'Not specified',
+            gender: user?.gender || 'Not specified',
+            nationality: user?.nationality || 'Not specified',
+            goal: user?.goal || 'General health',
+            activityLevel: user?.activityLevel || 'Moderate',
+            userPreferences: user?.preferences?.join(', ') || 'None',
             inputPreferences: input.preferences.join(', ') || 'None',
             customRequirements: input.customRequirements || 'None',
             previousMealsContext,
