@@ -337,50 +337,43 @@ const CreatePlan: React.FC = () => {
 
         if (event.type === 'plan_complete') {
           const allMeals = event.data.meals;
-          
+
           setStreamProgress(prev => ({
             ...prev,
-            message: user ? 'Saving your diet plan...' : '✓ Plan generated successfully!',
+            message: 'Saving your diet plan...',
             allMeals: allMeals,
           }));
 
-          // If user is authenticated, save immediately. Otherwise, store in state
-          if (user) {
-            trackPlanGenerationProgress('saving', undefined);
-            apiService.saveDietPlan(planInput, allMeals)
-              .then(result => {
-                if (result.success) {
-                  trackCreatePlanSuccess(data.name, planInput.preferences);
-                  trackPlanGenerationProgress('plan_complete', undefined);
-                  
-                  setSuccess('Diet plan generated and saved successfully!');
-                  setTimeout(() => {
-                    navigate('/diet-plans');
-                  }, 2000);
-                } else {
-                  throw new Error(result.error || 'Failed to save diet plan');
+          // Always save to database, regardless of authentication status
+          trackPlanGenerationProgress('saving', undefined);
+          apiService.saveDietPlan(planInput, allMeals)
+            .then(result => {
+              if (result.success) {
+                trackCreatePlanSuccess(data.name, planInput.preferences);
+                trackPlanGenerationProgress('plan_complete', undefined);
+
+                setSuccess('Diet plan generated and saved successfully!');
+
+                // Also store in localStorage for non-logged-in users to view
+                if (!user) {
+                  setGeneratedPlan({ planInput, meals: allMeals });
+                  localStorage.setItem('pendingDietPlan', JSON.stringify({ planInput, meals: allMeals }));
                 }
-              })
-              .catch(saveError => {
-                trackCreatePlanError(saveError.message || 'Failed to save diet plan');
-                setError(saveError.message || 'Failed to save diet plan');
-              })
-              .finally(() => {
-                setIsGenerating(false);
-              });
-          } else {
-            // Store generated plan for unauthenticated users
-            setGeneratedPlan({ planInput, meals: allMeals });
-            localStorage.setItem('pendingDietPlan', JSON.stringify({ planInput, meals: allMeals }));
-            trackCreatePlanSuccess(data.name, planInput.preferences);
-            trackPlanGenerationProgress('plan_complete', undefined);
-            setSuccess('Diet plan generated! Redirecting...');
-            setIsGenerating(false);
-            // Redirect to diet-plans to view the generated plan
-            setTimeout(() => {
-              navigate('/diet-plans');
-            }, 1500);
-          }
+
+                setTimeout(() => {
+                  navigate('/diet-plans');
+                }, 2000);
+              } else {
+                throw new Error(result.error || 'Failed to save diet plan');
+              }
+            })
+            .catch(saveError => {
+              trackCreatePlanError(saveError.message || 'Failed to save diet plan');
+              setError(saveError.message || 'Failed to save diet plan');
+            })
+            .finally(() => {
+              setIsGenerating(false);
+            });
         }
       });
 

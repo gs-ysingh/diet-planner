@@ -493,34 +493,32 @@ export const resolvers = {
     },
 
     saveDietPlan: async (_: any, { input }: { input: any }, context: Context) => {
-      if (!context.user) {
-        throw new AuthenticationError('Not authenticated');
-      }
-
       try {
-        // Deactivate existing active diet plans
-        await prisma.dietPlan.updateMany({
-          where: {
-            userId: context.user.id,
-            isActive: true
-          },
-          data: { isActive: false }
-        });
+        // Only deactivate existing active diet plans if user is authenticated
+        if (context.user) {
+          await prisma.dietPlan.updateMany({
+            where: {
+              userId: context.user.id,
+              isActive: true
+            },
+            data: { isActive: false }
+          });
+        }
 
         // Calculate week end date
         const weekStart = new Date(input.weekStart);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        // Create diet plan in database
+        // Create diet plan in database (userId is optional for non-logged-in users)
         const dietPlan = await prisma.dietPlan.create({
           data: {
-            userId: context.user.id,
+            userId: context.user?.id,
             name: input.name,
             description: input.description || 'Personalized diet plan',
             weekStart,
             weekEnd,
-            isActive: true,
+            isActive: context.user ? true : false,
             meals: {
               create: input.meals
             }
@@ -673,6 +671,9 @@ export const resolvers = {
       }
 
       try {
+        if (!meal.dietPlan.user) {
+          throw new Error('Diet plan has no associated user');
+        }
         const regeneratedMeal = await aiService.regenerateMeal(
           meal.dietPlan.user,
           meal,
@@ -716,15 +717,16 @@ export const resolvers = {
 
       try {
         // Convert null values to undefined for PDF service compatibility
+        // Note: dietPlan.user is guaranteed to exist here since we checked dietPlan.userId === context.user.id
         const pdfCompatiblePlan = {
           ...dietPlan,
           description: dietPlan.description || undefined,
           user: {
-            ...dietPlan.user,
-            age: dietPlan.user.age || undefined,
-            weight: dietPlan.user.weight || undefined,
-            height: dietPlan.user.height || undefined,
-            goal: dietPlan.user.goal || undefined,
+            ...dietPlan.user!,
+            age: dietPlan.user!.age || undefined,
+            weight: dietPlan.user!.weight || undefined,
+            height: dietPlan.user!.height || undefined,
+            goal: dietPlan.user!.goal || undefined,
           },
           meals: dietPlan.meals.map(meal => ({
             ...meal,
@@ -772,15 +774,16 @@ export const resolvers = {
 
       try {
         // Convert null values to undefined for CSV service compatibility
+        // Note: dietPlan.user is guaranteed to exist here since we checked dietPlan.userId === context.user.id
         const csvCompatiblePlan = {
           ...dietPlan,
           description: dietPlan.description || undefined,
           user: {
-            ...dietPlan.user,
-            age: dietPlan.user.age || undefined,
-            weight: dietPlan.user.weight || undefined,
-            height: dietPlan.user.height || undefined,
-            goal: dietPlan.user.goal || undefined,
+            ...dietPlan.user!,
+            age: dietPlan.user!.age || undefined,
+            weight: dietPlan.user!.weight || undefined,
+            height: dietPlan.user!.height || undefined,
+            goal: dietPlan.user!.goal || undefined,
           },
           meals: dietPlan.meals.map(meal => ({
             ...meal,
