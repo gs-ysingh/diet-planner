@@ -74,7 +74,7 @@ export class ModernAIService {
       apiKey: process.env.OPENAI_API_KEY,
       model: 'gpt-4o', // Faster and more cost-effective than gpt-5
       temperature: 0.7, // Balanced creativity
-      maxTokens: 2500, // Optimized for 4 meals per request
+      maxTokens: 8000, // Increased for complete 28-meal generation
       streaming: true, // Enable streaming for faster response
       timeout: 60000, // 1 minute timeout per request
       maxRetries: 2, // Retry on timeout
@@ -177,23 +177,48 @@ export class ModernAIService {
       try {
         const content = (rawResponse as any)?.content || rawResponse;
         if (typeof content === 'string') {
-          // Try to extract JSON from markdown code blocks if present
-          const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-          let jsonString = jsonMatch ? jsonMatch[1] : content;
-          
-          // Handle truncated JSON by attempting to close it
+          let jsonString = content.trim();
+
+          // Remove markdown code blocks if present (handles ```json or just ```)
+          if (jsonString.startsWith('```')) {
+            // Find the first newline after opening ```
+            const firstNewline = jsonString.indexOf('\n');
+            if (firstNewline !== -1) {
+              jsonString = jsonString.substring(firstNewline + 1);
+            }
+            // Remove closing ```
+            const lastBackticks = jsonString.lastIndexOf('```');
+            if (lastBackticks !== -1) {
+              jsonString = jsonString.substring(0, lastBackticks);
+            }
+            jsonString = jsonString.trim();
+          }
+
+          // Handle truncated JSON by attempting to repair it
           if (!jsonString.trim().endsWith('}')) {
-            // Count open and close braces
-            const openBraces = (jsonString.match(/\{/g) || []).length;
-            const closeBraces = (jsonString.match(/\}/g) || []).length;
-            const missingBraces = openBraces - closeBraces;
-            
-            // Add missing closing braces
-            if (missingBraces > 0) {
-              jsonString += ']' + '}'.repeat(missingBraces);
+            console.log('⚠️ Attempting to repair truncated JSON...');
+
+            // Find the last complete meal object by looking for the last "},"
+            const lastCompleteMeal = jsonString.lastIndexOf('},');
+            if (lastCompleteMeal !== -1) {
+              // Truncate to the last complete meal and close the array/object
+              jsonString = jsonString.substring(0, lastCompleteMeal + 1) + ']}';
+            } else {
+              // Try to close brackets/braces
+              const openBraces = (jsonString.match(/\{/g) || []).length;
+              const closeBraces = (jsonString.match(/\}/g) || []).length;
+              const openBrackets = (jsonString.match(/\[/g) || []).length;
+              const closeBrackets = (jsonString.match(/\]/g) || []).length;
+
+              if (openBrackets > closeBrackets) {
+                jsonString += ']'.repeat(openBrackets - closeBrackets);
+              }
+              if (openBraces > closeBraces) {
+                jsonString += '}'.repeat(openBraces - closeBraces);
+              }
             }
           }
-          
+
           result = JSON.parse(jsonString);
         } else if (typeof content === 'object') {
           result = content;
@@ -306,8 +331,21 @@ export class ModernAIService {
       // Parse JSON from streamed content
       let result;
       try {
-        const jsonMatch = streamedContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-        const jsonString = jsonMatch ? jsonMatch[1] : streamedContent;
+        let jsonString = streamedContent.trim();
+
+        // Remove markdown code blocks if present
+        if (jsonString.startsWith('```')) {
+          const firstNewline = jsonString.indexOf('\n');
+          if (firstNewline !== -1) {
+            jsonString = jsonString.substring(firstNewline + 1);
+          }
+          const lastBackticks = jsonString.lastIndexOf('```');
+          if (lastBackticks !== -1) {
+            jsonString = jsonString.substring(0, lastBackticks);
+          }
+          jsonString = jsonString.trim();
+        }
+
         result = JSON.parse(jsonString);
       } catch (parseError: any) {
         throw new Error(`Failed to parse AI response: ${parseError.message}`);
@@ -534,8 +572,21 @@ export class ModernAIService {
           // Parse the streamed response (array of 4 meals)
           let mealsArray;
           try {
-            const jsonMatch = streamedContent.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
-            const jsonString = jsonMatch ? jsonMatch[1] : streamedContent.trim();
+            let jsonString = streamedContent.trim();
+
+            // Remove markdown code blocks if present
+            if (jsonString.startsWith('```')) {
+              const firstNewline = jsonString.indexOf('\n');
+              if (firstNewline !== -1) {
+                jsonString = jsonString.substring(firstNewline + 1);
+              }
+              const lastBackticks = jsonString.lastIndexOf('```');
+              if (lastBackticks !== -1) {
+                jsonString = jsonString.substring(0, lastBackticks);
+              }
+              jsonString = jsonString.trim();
+            }
+
             mealsArray = JSON.parse(jsonString);
           } catch (parseError: any) {
             console.error(`Parse error for ${day}:`, parseError);
@@ -659,8 +710,21 @@ export class ModernAIService {
             const content = (rawResponse as any)?.content || rawResponse;
             let mealData;
             if (typeof content === 'string') {
-              const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-              const jsonString = jsonMatch ? jsonMatch[1] : content;
+              let jsonString = content.trim();
+
+              // Remove markdown code blocks if present
+              if (jsonString.startsWith('```')) {
+                const firstNewline = jsonString.indexOf('\n');
+                if (firstNewline !== -1) {
+                  jsonString = jsonString.substring(firstNewline + 1);
+                }
+                const lastBackticks = jsonString.lastIndexOf('```');
+                if (lastBackticks !== -1) {
+                  jsonString = jsonString.substring(0, lastBackticks);
+                }
+                jsonString = jsonString.trim();
+              }
+
               mealData = JSON.parse(jsonString);
             } else {
               mealData = content;
